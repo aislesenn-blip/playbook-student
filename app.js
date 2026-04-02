@@ -47,23 +47,33 @@ async function render() {
 
   if (!currentStudentId) {
     // Check if the student profile exists
-    let { data } = await supabase.from('students').select('id, full_name, registration_number').eq('auth_id', currentUser.id).single();
+    let { data, error: fetchError } = await supabase.from('students').select('id, full_name, registration_number').eq('auth_id', currentUser.id).single();
 
     // If they logged in for the first time without registering via our form,
     // explicitly map their Auth ID into the students table as required by the blueprint.
-    if (!data) {
-      const email = currentUser.email;
+    if (!data || fetchError) {
+      const email = currentUser.email || 'unknown@example.com';
       const defaultName = email.split('@')[0]; // fallback full_name
 
-      const { data: newStudent, error } = await supabase.from('students').insert({
+      const { data: newStudent, error: insertError } = await supabase.from('students').insert({
         auth_id: currentUser.id,
         email: email,
         full_name: defaultName,
         registration_number: null
       }).select('id, full_name, registration_number').single();
 
-      if (!error && newStudent) {
+      if (!insertError && newStudent) {
         data = newStudent;
+      } else {
+        console.error("Critical: Could not auto-create student profile. Check RLS policies.", insertError);
+        // Force the app to show a clear error instead of letting RPCs fail silently
+        app.innerHTML = `
+          <div class="text-center text-red-500 py-20 card max-w-md mx-auto mt-10">
+            <h2 class="text-xl font-bold mb-2">Profile Error</h2>
+            <p class="text-sm">We could not link your account to a student profile. Please contact support or check database permissions.</p>
+          </div>
+        `;
+        return;
       }
     }
 
@@ -225,10 +235,15 @@ function renderRegister() {
     btn.disabled = true;
     err.classList.add('hidden');
 
+    // Capture values before async calls to prevent DOM references from breaking
     const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    const fullName = document.getElementById('reg-name').value;
+    const regNumber = document.getElementById('reg-number').value || null;
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      password: document.getElementById('reg-password').value
+      password
     });
 
     if (authError) {
@@ -242,13 +257,16 @@ function renderRegister() {
       const { error: dbError } = await supabase.from('students').insert({
         auth_id: authData.user.id,
         email,
-        full_name: document.getElementById('reg-name').value,
-        registration_number: document.getElementById('reg-number').value
+        full_name: fullName,
+        registration_number: regNumber
       });
       if (dbError) {
         err.textContent = dbError.message;
         err.classList.remove('hidden');
         btn.disabled = false;
+      } else {
+        // Automatically set currentStudentId to bypass the fallback check
+        currentStudentId = authData.user.id; // It will be fetched properly on next render
       }
     }
   });

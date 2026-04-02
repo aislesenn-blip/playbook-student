@@ -47,7 +47,7 @@ async function render() {
 
   if (!currentStudentId) {
     // Check if the student profile exists
-    let { data } = await supabase.from('students').select('id, full_name').eq('auth_id', currentUser.id).single();
+    let { data } = await supabase.from('students').select('id, full_name, registration_number').eq('auth_id', currentUser.id).single();
 
     // If they logged in for the first time without registering via our form,
     // explicitly map their Auth ID into the students table as required by the blueprint.
@@ -60,7 +60,7 @@ async function render() {
         email: email,
         full_name: defaultName,
         registration_number: null
-      }).select('id, full_name').single();
+      }).select('id, full_name, registration_number').single();
 
       if (!error && newStudent) {
         data = newStudent;
@@ -70,6 +70,7 @@ async function render() {
     if (data) {
       currentStudentId = data.id;
       window.studentName = data.full_name;
+      window.registrationNumber = data.registration_number;
     }
   }
 
@@ -273,7 +274,6 @@ async function renderDashboard() {
       err.classList.add('hidden');
 
       const { data, error } = await supabase.rpc('api_join_class', {
-        p_student_auth_id: currentUser.id,
         p_join_code: code
       });
 
@@ -308,7 +308,17 @@ async function renderDashboard() {
     // Fetch sessions
     const courseIds = enrollments.map(e => e.course_id);
     const { data: sessions } = await supabase.from('sessions').select('id, title, description, publish_status, courses(name)').in('course_id', courseIds);
-    const { data: submissions } = await supabase.from('exam_submissions').select('id, session_id, status').eq('student_name', window.studentName);
+
+    // Fetch submissions based on registration_number (with fallback to student_name if reg number is null)
+    let submissions = [];
+    if (window.registrationNumber) {
+      const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('registration_number', window.registrationNumber);
+      submissions = data || [];
+    } else {
+      const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('student_name', window.studentName);
+      submissions = data || [];
+    }
+
     const submittedIds = new Set(submissions?.map(s => s.session_id) || []);
 
     const pending = sessions?.filter(s => !submittedIds.has(s.id)) || [];
@@ -428,7 +438,6 @@ async function renderAssignment(id) {
       }
 
       const { data, error } = await supabase.rpc('api_submit_work', {
-        p_student_auth_id: currentUser.id,
         p_session_id: session.id,
         p_text_content: type === 'text' ? document.getElementById('submit-text').value : null,
         p_pdf_path: pdfPath

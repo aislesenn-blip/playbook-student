@@ -307,7 +307,7 @@ async function renderDashboard() {
 
     // Fetch sessions
     const courseIds = enrollments.map(e => e.course_id);
-    const { data: sessions } = await supabase.from('sessions').select('id, title, description, publish_status, courses(name)').in('course_id', courseIds);
+    const { data: sessions } = await supabase.from('sessions').select('id, title, publish_status, courses(name)').in('course_id', courseIds);
 
     // Fetch submissions based on registration_number (with fallback to student_name if reg number is null)
     let submissions = [];
@@ -371,7 +371,7 @@ async function renderDashboard() {
 }
 
 async function renderAssignment(id) {
-  const { data: session } = await supabase.from('sessions').select('id, title, description, courses(name)').eq('id', id).single();
+  const { data: session } = await supabase.from('sessions').select('id, title, courses(name)').eq('id', id).single();
   if (!session) return renderDashboard();
 
   const tpl = document.getElementById('tpl-assignment').content.cloneNode(true);
@@ -382,7 +382,7 @@ async function renderAssignment(id) {
     <p class="text-xs font-bold text-slate-400 uppercase">${session.courses?.name || 'Unknown Course'}</p>
     <h1 class="text-2xl font-bold text-slate-900">${session.title}</h1>
   `;
-  document.getElementById('assignment-desc').textContent = session.description;
+  document.getElementById('assignment-desc').textContent = "Please read the assignment instructions provided by your professor.";
 
   let type = 'text';
   const tabText = document.getElementById('tab-text');

@@ -1,20 +1,38 @@
-127.0.0.1 - - [02/Apr/2026 12:40:35] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:40:35] "GET /styles.css HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:40:35] "GET /env.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:40:35] "GET /app.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:41:51] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:41:51] "GET /styles.css HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:41:51] "GET /app.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:41:51] "GET /env.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:43:08] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:43:08] "GET /styles.css HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:43:08] "GET /app.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 12:43:08] "GET /env.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:46:03] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:46:03] "GET /styles.css HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:46:03] "GET /app.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:46:03] "GET /env.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:55:16] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:55:16] "GET /app.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:55:16] "GET /env.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Apr/2026 13:55:16] "GET /styles.css HTTP/1.1" 200 -
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/http/server.py", line 1329, in <module>
+    test(
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/http/server.py", line 1276, in test
+    with ServerClass(addr, HandlerClass) as httpd:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/socketserver.py", line 457, in __init__
+    self.server_bind()
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/http/server.py", line 1323, in server_bind
+    return super().server_bind()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/http/server.py", line 140, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/home/jules/.pyenv/versions/3.12.13/lib/python3.12/socketserver.py", line 478, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 98] Address already in use
+127.0.0.1 - - [02/Apr/2026 14:29:47] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:29:47] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:29:47] "GET /env.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:29:47] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:29:47] "GET /images/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:30:29] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:30:29] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:30:29] "GET /images/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:30:29] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:30:29] "GET /env.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:10] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:10] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:10] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:10] "GET /env.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:10] "GET /images/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:53] "GET /env.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:53] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:53] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [02/Apr/2026 14:31:53] "GET /images/logo.png HTTP/1.1" 200 -

@@ -38,20 +38,19 @@ export default function GradeReview() {
         .eq('id', submissionId)
         .single()
 
-      // Note: In a real scenario, we'd fetch the specific AI feedback JSON from the submission.
-      // Since `exam_submissions` schema in appendix doesn't explicitly list `ai_feedback` or `score`,
-      // we'll mock the UI presentation of feedback items for demonstration of the "Billion Dollar App" aesthetic.
-
+      // Use actual data if available, fallback to defaults
       // @ts-ignore
       if (subData && subData.sessions?.publish_status === 'published') {
+        // Assume ai_feedback is a JSONB array and score is a number, falling back to empty/null if they don't exist
+        // @ts-ignore
+        const score = subData.score ?? 'N/A';
+        // @ts-ignore
+        const feedbackList = subData.ai_feedback && Array.isArray(subData.ai_feedback) ? subData.ai_feedback : [];
+
         setSubmission({
           ...subData,
-          // Mock data for the aesthetic display
-          overallScore: 85,
-          feedback: [
-            { id: 'q1', question: 'Explain the theory of relativity.', score: 10, maxScore: 10, aiNote: 'Excellent explanation. Covered both special and general relativity concisely.' },
-            { id: 'q2', question: 'What is Quantum Entanglement?', score: 6, maxScore: 10, aiNote: 'You missed the key aspect of non-locality. The explanation was too classical.' },
-          ]
+          overallScore: score,
+          feedback: feedbackList
         })
       }
       setLoading(false)
@@ -120,63 +119,69 @@ export default function GradeReview() {
           <p className="text-gray-500">Review your feedback below. You may appeal specific questions if you believe there was an error in grading.</p>
         </div>
 
-        {submission.feedback.map((item: any) => (
-          <div key={item.id} className="bg-white rounded-[24px] border border-gray-100 overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-gray-50">
-              <div className="flex justify-between items-start gap-4 mb-4">
-                <h3 className="text-lg font-bold text-gray-900 flex-1">{item.question}</h3>
-                <div className={`px-3 py-1 rounded-full text-sm font-bold flex-shrink-0 ${item.score === item.maxScore ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-                  {item.score} / {item.maxScore} pts
+        {submission.feedback && submission.feedback.length > 0 ? (
+          submission.feedback.map((item: any, index: number) => (
+            <div key={item.id || index} className="bg-white rounded-[24px] border border-gray-100 overflow-hidden shadow-sm">
+              <div className="p-6 border-b border-gray-50">
+                <div className="flex justify-between items-start gap-4 mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 flex-1">{item.question || `Question ${index + 1}`}</h3>
+                  <div className={`px-3 py-1 rounded-full text-sm font-bold flex-shrink-0 ${item.score === item.maxScore ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {item.score ?? '-'} / {item.maxScore ?? '-'} pts
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-[16px]">
+                  <p className="text-sm font-semibold text-gray-500 mb-1">AI Notes:</p>
+                  <p className="text-gray-800">{item.aiNote || 'No feedback provided.'}</p>
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-[16px]">
-                <p className="text-sm font-semibold text-gray-500 mb-1">AI Notes:</p>
-                <p className="text-gray-800">{item.aiNote}</p>
+              <div className="bg-gray-50/50 p-4 px-6 flex justify-end">
+                {appealState[item.id || index] === 'submitted' ? (
+                  <span className="flex items-center gap-2 text-sm font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full">
+                    <CheckCircle size={16} /> Appeal Submitted
+                  </span>
+                ) : activeAppealQId === (item.id || index.toString()) ? (
+                  <div className="w-full flex gap-2">
+                    <input
+                      type="text"
+                      value={appealReason}
+                      onChange={(e) => setAppealReason(e.target.value)}
+                      placeholder="Briefly explain why..."
+                      className="flex-1 px-4 py-2 rounded-full border border-gray-200 outline-none focus:border-brand-500 text-sm"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleAppeal(item.id || index.toString())}
+                      disabled={!appealReason || appealState[item.id || index] === 'appealing'}
+                      className="px-4 py-2 bg-gray-900 text-white rounded-full text-sm font-bold disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                    <button
+                      onClick={() => { setActiveAppealQId(null); setAppealReason(''); }}
+                      className="p-2 text-gray-400 hover:text-gray-900 rounded-full"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setActiveAppealQId(item.id || index.toString())}
+                    className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors"
+                  >
+                    <AlertCircle size={16} />
+                    Dispute / Appeal
+                  </button>
+                )}
               </div>
             </div>
-
-            <div className="bg-gray-50/50 p-4 px-6 flex justify-end">
-              {appealState[item.id] === 'submitted' ? (
-                <span className="flex items-center gap-2 text-sm font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full">
-                  <CheckCircle size={16} /> Appeal Submitted
-                </span>
-              ) : activeAppealQId === item.id ? (
-                <div className="w-full flex gap-2">
-                  <input
-                    type="text"
-                    value={appealReason}
-                    onChange={(e) => setAppealReason(e.target.value)}
-                    placeholder="Briefly explain why..."
-                    className="flex-1 px-4 py-2 rounded-full border border-gray-200 outline-none focus:border-brand-500 text-sm"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => handleAppeal(item.id)}
-                    disabled={!appealReason || appealState[item.id] === 'appealing'}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-full text-sm font-bold disabled:opacity-50"
-                  >
-                    Send
-                  </button>
-                  <button
-                    onClick={() => { setActiveAppealQId(null); setAppealReason(''); }}
-                    className="p-2 text-gray-400 hover:text-gray-900 rounded-full"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setActiveAppealQId(item.id)}
-                  className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors"
-                >
-                  <AlertCircle size={16} />
-                  Dispute / Appeal
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          ))
+        ) : (
+           <div className="bg-white p-8 rounded-[24px] text-center border border-gray-100 shadow-sm text-gray-500">
+             No detailed question feedback available yet.
+           </div>
+        )}
       </main>
     </div>
   )

@@ -102,7 +102,7 @@ async function renderGradeReview(subId) {
   app.innerHTML = '';
   app.appendChild(tpl);
 
-  document.getElementById('grade-course-name').textContent = subData.sessions.courses.name;
+  document.getElementById('grade-course-name').textContent = subData.sessions.courses?.name || 'Unknown Course';
   document.getElementById('grade-title').textContent = subData.sessions.title;
   document.getElementById('grade-score').textContent = `${subData.score ?? 'N/A'}%`;
 
@@ -300,7 +300,7 @@ async function renderDashboard() {
           <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <i data-lucide="book" class="text-slate-600 w-5 h-5"></i>
           </div>
-          <h3 class="font-bold text-slate-900">${e.courses.name}</h3>
+          <h3 class="font-bold text-slate-900">${e.courses?.name || 'Unknown Course'}</h3>
         </div>
       `;
     });
@@ -319,7 +319,7 @@ async function renderDashboard() {
       pending.forEach(s => {
         pList.innerHTML += `
           <a href="#assignment/${s.id}" class="block card hover:border-slate-300 transition-colors group">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-1">${s.courses.name}</p>
+            <p class="text-xs font-bold text-slate-400 uppercase mb-1">${s.courses?.name || 'Unknown Course'}</p>
             <h3 class="font-bold text-slate-900 group-hover:text-slate-600 transition-colors">${s.title}</h3>
           </a>
         `;
@@ -369,7 +369,7 @@ async function renderAssignment(id) {
   app.appendChild(tpl);
 
   document.getElementById('assignment-header').innerHTML = `
-    <p class="text-xs font-bold text-slate-400 uppercase">${session.courses.name}</p>
+    <p class="text-xs font-bold text-slate-400 uppercase">${session.courses?.name || 'Unknown Course'}</p>
     <h1 class="text-2xl font-bold text-slate-900">${session.title}</h1>
   `;
   document.getElementById('assignment-desc').textContent = session.description;

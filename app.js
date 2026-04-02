@@ -46,7 +46,27 @@ async function render() {
   header.classList.remove('hidden');
 
   if (!currentStudentId) {
-    const { data } = await supabase.from('students').select('id, full_name').eq('auth_id', currentUser.id).single();
+    // Check if the student profile exists
+    let { data } = await supabase.from('students').select('id, full_name').eq('auth_id', currentUser.id).single();
+
+    // If they logged in for the first time without registering via our form,
+    // explicitly map their Auth ID into the students table as required by the blueprint.
+    if (!data) {
+      const email = currentUser.email;
+      const defaultName = email.split('@')[0]; // fallback full_name
+
+      const { data: newStudent, error } = await supabase.from('students').insert({
+        auth_id: currentUser.id,
+        email: email,
+        full_name: defaultName,
+        registration_number: null
+      }).select('id, full_name').single();
+
+      if (!error && newStudent) {
+        data = newStudent;
+      }
+    }
+
     if (data) {
       currentStudentId = data.id;
       window.studentName = data.full_name;

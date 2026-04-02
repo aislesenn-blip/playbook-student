@@ -288,7 +288,7 @@ async function renderDashboard() {
   });
 
   // Fetch Data
-  const { data: enrollments } = await supabase.from('class_enrollments').select('course_id, courses(id, name, description)').eq('student_id', currentStudentId);
+  const { data: enrollments } = await supabase.from('class_enrollments').select('course_id, courses(id, name)').eq('student_id', currentStudentId);
 
   const classList = document.getElementById('classes-list');
   if (!enrollments || enrollments.length === 0) {
@@ -301,7 +301,6 @@ async function renderDashboard() {
             <i data-lucide="book" class="text-slate-600 w-5 h-5"></i>
           </div>
           <h3 class="font-bold text-slate-900">${e.courses.name}</h3>
-          <p class="text-sm text-slate-500 mt-1 line-clamp-2">${e.courses.description || ''}</p>
         </div>
       `;
     });

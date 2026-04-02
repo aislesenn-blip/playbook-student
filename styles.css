@@ -1,0 +1,63 @@
+:root {
+  --color-brand-50: #f8fafc;
+  --color-brand-100: #f1f5f9;
+  --color-brand-300: #cbd5e1;
+  --color-brand-500: #64748b;
+  --color-brand-600: #0f172a;
+  --color-brand-700: #020617;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base utility overrides for "Billion Dollar App" aesthetic */
+.btn-primary {
+  background-color: var(--color-brand-600);
+  color: white;
+  border-radius: 9999px; /* Pill */
+  padding: 1rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-brand-700);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-field {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 16px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  outline: none;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+.input-field:focus {
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 0 2px var(--color-brand-100);
+}
+
+.card {
+  background-color: white;
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.hidden {
+  display: none !important;
+}

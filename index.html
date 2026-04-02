@@ -1,13 +1,203 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>app</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="env.js"></script>
+  <script type="module" src="app.js" defer></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
+
+  <!-- Navigation Bar -->
+  <header id="main-header" class="bg-white sticky top-0 z-10 border-b border-slate-100 px-6 py-4 flex justify-between items-center shadow-sm hidden">
+    <h1 class="text-xl font-bold text-slate-900 cursor-pointer" onclick="window.location.hash=''">Student Portal</h1>
+    <button id="btn-logout" class="text-sm font-medium text-slate-500 hover:text-slate-900">Sign out</button>
+  </header>
+
+  <main id="app-container" class="max-w-3xl mx-auto px-4 py-8"></main>
+
+  <!-- Modals Container -->
+  <div id="modals-container"></div>
+
+  <!-- Templates -->
+  <template id="tpl-login">
+    <div class="min-h-[80vh] flex items-center justify-center">
+      <div class="w-full max-w-md space-y-8 card">
+        <div class="text-center">
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
+          <p class="mt-2 text-sm text-slate-500">Sign in to your student portal</p>
+        </div>
+        <form id="form-login" class="mt-8 space-y-6">
+          <div id="login-error" class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm hidden"></div>
+          <div class="space-y-4">
+            <input type="email" id="login-email" required class="input-field bg-slate-50 border-none" placeholder="Email address">
+            <input type="password" id="login-password" required class="input-field bg-slate-50 border-none" placeholder="Password">
+          </div>
+          <button type="submit" id="btn-login-submit" class="btn-primary">Sign in</button>
+        </form>
+        <p class="text-center text-sm text-slate-500">
+          Don't have an account? <a href="#register" class="font-semibold text-slate-900 hover:underline">Register here</a>
+        </p>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-register">
+    <div class="min-h-[80vh] flex items-center justify-center">
+      <div class="w-full max-w-md space-y-8 card">
+        <div class="text-center">
+          <h2 class="text-3xl font-bold tracking-tight text-slate-900">Create Account</h2>
+          <p class="mt-2 text-sm text-slate-500">Join the student portal</p>
+        </div>
+        <form id="form-register" class="mt-8 space-y-6">
+          <div id="register-error" class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm hidden"></div>
+          <div class="space-y-4">
+            <input type="text" id="reg-name" required class="input-field bg-slate-50 border-none" placeholder="Full Name">
+            <input type="text" id="reg-number" class="input-field bg-slate-50 border-none" placeholder="Registration Number (Optional)">
+            <input type="email" id="reg-email" required class="input-field bg-slate-50 border-none" placeholder="Email address">
+            <input type="password" id="reg-password" required class="input-field bg-slate-50 border-none" placeholder="Password">
+          </div>
+          <button type="submit" id="btn-register-submit" class="btn-primary">Create account</button>
+        </form>
+        <p class="text-center text-sm text-slate-500">
+          Already have an account? <a href="#login" class="font-semibold text-slate-900 hover:underline">Sign in</a>
+        </p>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-dashboard">
+    <div class="space-y-10">
+      <section>
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-slate-900">My Classes</h2>
+          <button id="btn-open-join" class="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-full text-sm font-semibold hover:bg-slate-200 transition-colors">
+            <i data-lucide="plus" class="w-4 h-4"></i> Join Class
+          </button>
+        </div>
+        <div id="classes-list" class="grid gap-4 sm:grid-cols-2"></div>
+      </section>
+
+      <section id="pending-section" class="hidden">
+        <h2 class="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+          <i data-lucide="clock" class="text-amber-500 w-6 h-6"></i> Pending Assignments
+        </h2>
+        <div id="pending-list" class="space-y-4"></div>
+      </section>
+
+      <section id="graded-section" class="hidden">
+        <h2 class="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+          <i data-lucide="check-circle" class="text-green-500 w-6 h-6"></i> Recently Graded
+        </h2>
+        <div id="graded-list" class="space-y-4"></div>
+      </section>
+    </div>
+  </template>
+
+  <template id="tpl-join-modal">
+    <div id="join-modal-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="w-full max-w-sm bg-white rounded-[24px] shadow-xl overflow-hidden">
+        <div class="flex justify-between items-center p-6 pb-4 border-b border-slate-50">
+          <h3 class="text-xl font-bold text-slate-900">Join a Class</h3>
+          <button id="btn-close-join" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form id="form-join" class="p-6 space-y-6">
+          <div id="join-error" class="bg-red-50 text-red-500 p-4 rounded-[16px] text-sm hidden"></div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Class Code</label>
+            <input type="text" id="join-code" required maxlength="6" class="input-field text-center tracking-[0.2em] font-mono font-bold uppercase" placeholder="e.g. A1B2C3">
+          </div>
+          <button type="submit" id="btn-join-submit" class="btn-primary">Join Class</button>
+        </form>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-assignment">
+    <div class="space-y-8">
+      <button onclick="window.location.hash=''" class="flex items-center gap-2 text-slate-500 hover:text-slate-900">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+      </button>
+
+      <div id="assignment-header"></div>
+
+      <div class="card">
+        <h2 class="text-lg font-bold text-slate-900 mb-2">Instructions</h2>
+        <p id="assignment-desc" class="text-slate-600 whitespace-pre-wrap"></p>
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-bold text-slate-900 mb-6">Submit Your Work</h2>
+
+        <div class="card p-2 flex mb-6 shadow-sm gap-2">
+          <button id="tab-text" class="flex-1 py-3 px-4 rounded-[20px] text-sm font-semibold flex items-center justify-center gap-2 bg-slate-100 text-slate-800 transition-colors">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Write Online
+          </button>
+          <button id="tab-pdf" class="flex-1 py-3 px-4 rounded-[20px] text-sm font-semibold flex items-center justify-center gap-2 text-slate-500 hover:bg-slate-50 transition-colors">
+            <i data-lucide="upload" class="w-4 h-4"></i> Upload PDF
+          </button>
+        </div>
+
+        <form id="form-submit-work" class="space-y-6">
+          <div id="submit-error" class="bg-red-50 text-red-500 p-4 rounded-[16px] text-sm hidden"></div>
+
+          <div id="container-text" class="card p-0 overflow-hidden">
+            <textarea id="submit-text" required class="w-full h-64 p-6 outline-none resize-none text-base text-slate-900" placeholder="Type your answer here..."></textarea>
+          </div>
+
+          <div id="container-pdf" class="hidden card border-2 border-dashed border-slate-200 text-center hover:border-slate-500 cursor-pointer relative">
+            <input type="file" id="submit-pdf" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-lucide="upload" class="text-slate-600 w-8 h-8"></i>
+            </div>
+            <h3 id="pdf-name" class="text-lg font-bold text-slate-900 mb-1">Select PDF to upload</h3>
+            <p class="text-slate-500 text-sm">Tap to browse files (PDF only)</p>
+          </div>
+
+          <button type="submit" id="btn-submit-work" class="btn-primary">Submit Work</button>
+        </form>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-success">
+    <div class="card text-center py-12">
+      <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <i data-lucide="check-circle" class="text-green-500 w-12 h-12"></i>
+      </div>
+      <h2 class="text-3xl font-bold text-slate-900 mb-4">Submission Secured</h2>
+      <p class="text-slate-500 mb-8 text-lg">Awaiting Professor's Review. You will be notified once graded.</p>
+      <button onclick="window.location.hash=''" class="btn-primary">Return to Dashboard</button>
+    </div>
+  </template>
+
+  <template id="tpl-grade-review">
+    <div class="space-y-6">
+      <header class="flex items-center gap-4 bg-white p-4 rounded-[24px] shadow-sm border border-slate-100">
+        <button onclick="window.location.hash=''" class="p-2 text-slate-400 hover:text-slate-900 rounded-full hover:bg-slate-50">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+        <div class="flex-1">
+          <p id="grade-course-name" class="text-xs font-semibold text-slate-500 uppercase tracking-wider"></p>
+          <h1 id="grade-title" class="text-xl font-bold text-slate-900"></h1>
+        </div>
+        <div id="grade-score" class="bg-slate-100 text-slate-800 px-4 py-2 rounded-full font-bold text-lg"></div>
+      </header>
+
+      <div class="bg-white p-8 rounded-[32px] text-center border border-slate-100 shadow-sm mb-8">
+        <h2 class="text-3xl font-bold text-slate-900 mb-2">AI Evaluation Complete</h2>
+        <p class="text-slate-500">Review your feedback below. You may appeal specific questions if you believe there was an error in grading.</p>
+      </div>
+
+      <div id="feedback-list" class="space-y-6"></div>
+    </div>
+  </template>
+
+</body>
 </html>

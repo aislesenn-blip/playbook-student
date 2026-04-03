@@ -75,6 +75,29 @@
     </div>
   </template>
 
+  <template id="tpl-course">
+    <div class="space-y-8 max-w-3xl mx-auto">
+      <a href="#" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard
+      </a>
+      <h2 id="course-title" class="text-3xl font-bold text-slate-900 mb-8">Course Name</h2>
+
+      <section id="course-pending-section" class="hidden">
+        <h3 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <i data-lucide="clock" class="text-amber-500 w-5 h-5"></i> Pending Assignments
+        </h3>
+        <div id="course-pending-list" class="space-y-4"></div>
+      </section>
+
+      <section id="course-graded-section" class="hidden">
+        <h3 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <i data-lucide="check-circle" class="text-emerald-500 w-5 h-5"></i> Past Submissions & Grades
+        </h3>
+        <div id="course-graded-list" class="space-y-4"></div>
+      </section>
+    </div>
+  </template>
+
   <template id="tpl-dashboard">
     <div class="space-y-10">
       <section>

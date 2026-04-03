@@ -85,7 +85,9 @@ async function render() {
   }
 
   const hash = window.location.hash;
-  if (hash.startsWith('#assignment/')) {
+  if (hash.startsWith('#course/')) {
+    renderCourse(hash.split('/')[1]);
+  } else if (hash.startsWith('#assignment/')) {
     renderAssignment(hash.split('/')[1]);
   } else if (hash.startsWith('#grade/')) {
     renderGradeReview(hash.split('/')[1]);
@@ -99,22 +101,31 @@ async function renderGradeReview(subId) {
   const { data: subData } = await supabase
     .from('exam_submissions')
     .select(`
-      id, status, score, ai_feedback,
-      sessions!inner(title, publish_status, courses(name))
+      id, status, score, ai_feedback, session_id
     `)
     .eq('id', subId)
     .single();
 
-  if (!subData || subData.sessions.publish_status !== 'published') {
+  if (!subData) return renderDashboard();
+
+  const { data: sessionData } = await supabase.from('sessions').select('title, publish_status, course_id').eq('id', subData.session_id).single();
+
+  if (!sessionData || sessionData.publish_status !== 'published') {
     return renderDashboard();
+  }
+
+  let courseName = 'Unknown Course';
+  if (sessionData.course_id) {
+      const { data: courseData } = await supabase.from('courses').select('name').eq('id', sessionData.course_id).single();
+      if (courseData && courseData.name) courseName = courseData.name;
   }
 
   const tpl = document.getElementById('tpl-grade-review').content.cloneNode(true);
   app.innerHTML = '';
   app.appendChild(tpl);
 
-  document.getElementById('grade-course-name').textContent = subData.sessions.courses?.name || 'Unknown Course';
-  document.getElementById('grade-title').textContent = subData.sessions.title;
+  document.getElementById('grade-course-name').textContent = courseName;
+  document.getElementById('grade-title').textContent = sessionData.title;
   document.getElementById('grade-score').textContent = `${subData.score ?? 'N/A'}%`;
 
   const feedbackList = document.getElementById('feedback-list');
@@ -272,6 +283,99 @@ function renderRegister() {
   });
 }
 
+async function renderCourse(courseId) {
+  const tpl = document.getElementById('tpl-course').content.cloneNode(true);
+  app.innerHTML = '';
+  app.appendChild(tpl);
+
+  // Fetch course name
+  const { data: courseData } = await supabase.from('courses').select('name').eq('id', courseId).single();
+  document.getElementById('course-title').textContent = courseData?.name || 'Unknown Course';
+
+  // Fetch sessions for this course
+  const { data: sessions, error: sessionsError } = await supabase.from('sessions').select('id, title, publish_status').eq('course_id', courseId);
+  if (sessionsError) console.error("Sessions fetch error:", sessionsError);
+
+  let submissions = [];
+  if (window.registrationNumber) {
+    const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('registration_number', window.registrationNumber);
+    submissions = data || [];
+  } else if (currentUser?.email) {
+    // Fallback
+    const studentName = currentUser.email.split('@')[0];
+    const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('student_name', studentName);
+    submissions = data || [];
+  }
+
+  const pendingList = document.getElementById('course-pending-list');
+  const gradedList = document.getElementById('course-graded-list');
+  const pendingSection = document.getElementById('course-pending-section');
+  const gradedSection = document.getElementById('course-graded-section');
+
+  let hasPending = false;
+  let hasGraded = false;
+
+  (sessions || []).forEach(s => {
+    const sub = submissions.find(sub => sub.session_id === s.id);
+
+    if (!sub) {
+      // Pending assignment
+      hasPending = true;
+      pendingSection.classList.remove('hidden');
+      pendingList.innerHTML += `
+        <a href="#assignment/${s.id}" class="card hover:border-slate-300 transition-colors block">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900">${s.title}</h3>
+              <p class="text-sm text-slate-500 mt-1">Not started</p>
+            </div>
+            <i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>
+          </div>
+        </a>
+      `;
+    } else {
+      // Submitted assignment
+      hasGraded = true;
+      gradedSection.classList.remove('hidden');
+      let statusHtml = '';
+      let linkHtml = `href="#grade/${sub.id}"`;
+
+      if (s.publish_status === 'published') {
+        statusHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Graded</span>`;
+      } else {
+        statusHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Submitted</span>`;
+        // Don't link to grade view if not published yet
+        linkHtml = `href="#" class="cursor-default opacity-75"`;
+      }
+
+      gradedList.innerHTML += `
+        <a ${linkHtml} class="card hover:border-slate-300 transition-colors block">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900">${s.title}</h3>
+              <div class="mt-2">${statusHtml}</div>
+            </div>
+            ${s.publish_status === 'published' ? `<i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>` : ''}
+          </div>
+        </a>
+      `;
+    }
+  });
+
+  if (!hasPending && !hasGraded) {
+    app.innerHTML += `
+      <div class="text-center py-12 max-w-3xl mx-auto">
+        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="folder-open" class="text-slate-400 w-8 h-8"></i>
+        </div>
+        <p class="text-slate-500">No assignments found for this course.</p>
+      </div>
+    `;
+  }
+
+  lucide.createIcons();
+}
+
 async function renderDashboard() {
   const tpl = document.getElementById('tpl-dashboard').content.cloneNode(true);
   app.innerHTML = '';
@@ -306,26 +410,45 @@ async function renderDashboard() {
   });
 
   // Fetch Data
-  const { data: enrollments } = await supabase.from('class_enrollments').select('course_id, courses(id, name)').eq('student_id', currentStudentId);
+  // Workaround: We fetch enrollments first, then separately fetch courses to avoid 400 Bad Request if FKs are missing/blocked on the backend.
+  const { data: rawEnrollments, error: enrollError } = await supabase.from('class_enrollments').select('course_id').eq('student_id', currentStudentId);
+
+  if (enrollError) {
+      console.error("Enrollment fetch error:", enrollError);
+  }
 
   const classList = document.getElementById('classes-list');
-  if (!enrollments || enrollments.length === 0) {
+  if (!rawEnrollments || rawEnrollments.length === 0) {
     classList.innerHTML = `<div class="col-span-2 text-center text-slate-500 py-10 card">No classes yet. Join one above!</div>`;
   } else {
-    enrollments.forEach(e => {
+    const courseIds = rawEnrollments.map(e => e.course_id);
+    const { data: coursesData } = await supabase.from('courses').select('id, name').in('id', courseIds);
+
+    // Create a lookup dictionary for courses
+    const courseLookup = {};
+    if (coursesData) {
+        coursesData.forEach(c => courseLookup[c.id] = c.name);
+    }
+
+    rawEnrollments.forEach(e => {
+      // NOTE: Playbook Student Portal focuses on assignments/sessions, not course-specific pages yet.
+      // But if there were a course view, it would link like: <a href="#course/${e.course_id}" ...>
       classList.innerHTML += `
-        <div class="card hover:border-slate-300 transition-colors">
+        <a href="#course/${e.course_id}" class="card hover:border-slate-300 transition-colors block cursor-pointer">
           <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mb-4">
             <i data-lucide="book" class="text-slate-600 w-5 h-5"></i>
           </div>
-          <h3 class="font-bold text-slate-900">${e.courses?.name || 'Unknown Course'}</h3>
-        </div>
+          <h3 class="font-bold text-slate-900">${courseLookup[e.course_id] || 'Unknown Course'}</h3>
+        </a>
       `;
     });
 
     // Fetch sessions
-    const courseIds = enrollments.map(e => e.course_id);
-    const { data: sessions } = await supabase.from('sessions').select('id, title, publish_status, courses(name)').in('course_id', courseIds);
+    // Decouple relational query here as well to prevent 400 errors
+    const { data: sessions, error: sessionsError } = await supabase.from('sessions').select('id, title, publish_status, course_id').in('course_id', courseIds);
+    if (sessionsError) {
+        console.error("Sessions fetch error:", sessionsError);
+    }
 
     // Fetch submissions based on registration_number (with fallback to student_name if reg number is null)
     let submissions = [];
@@ -347,7 +470,7 @@ async function renderDashboard() {
       pending.forEach(s => {
         pList.innerHTML += `
           <a href="#assignment/${s.id}" class="block card hover:border-slate-300 transition-colors group">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-1">${s.courses?.name || 'Unknown Course'}</p>
+            <p class="text-xs font-bold text-slate-400 uppercase mb-1">${courseLookup[s.course_id] || 'Unknown Course'}</p>
             <h3 class="font-bold text-slate-900 group-hover:text-slate-600 transition-colors">${s.title}</h3>
           </a>
         `;
@@ -389,15 +512,21 @@ async function renderDashboard() {
 }
 
 async function renderAssignment(id) {
-  const { data: session } = await supabase.from('sessions').select('id, title, courses(name)').eq('id', id).single();
+  const { data: session } = await supabase.from('sessions').select('id, title, course_id').eq('id', id).single();
   if (!session) return renderDashboard();
+
+  let courseName = 'Unknown Course';
+  if (session.course_id) {
+      const { data: courseData } = await supabase.from('courses').select('name').eq('id', session.course_id).single();
+      if (courseData && courseData.name) courseName = courseData.name;
+  }
 
   const tpl = document.getElementById('tpl-assignment').content.cloneNode(true);
   app.innerHTML = '';
   app.appendChild(tpl);
 
   document.getElementById('assignment-header').innerHTML = `
-    <p class="text-xs font-bold text-slate-400 uppercase">${session.courses?.name || 'Unknown Course'}</p>
+    <p class="text-xs font-bold text-slate-400 uppercase">${courseName}</p>
     <h1 class="text-2xl font-bold text-slate-900">${session.title}</h1>
   `;
   document.getElementById('assignment-desc').textContent = "Please read the assignment instructions provided by your professor.";

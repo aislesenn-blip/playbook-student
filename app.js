@@ -292,8 +292,34 @@ async function renderCourse(courseId) {
   const { data: courseData } = await supabase.from('courses').select('name').eq('id', courseId).single();
   document.getElementById('course-title').textContent = courseData?.name || 'Unknown Course';
 
+  // Fetch course materials
+  const { data: materials, error: materialsError } = await supabase.from('course_materials').select('*').eq('course_id', courseId);
+  if (materialsError) console.error("Materials fetch error:", materialsError);
+
+  const materialsList = document.getElementById('course-materials-list');
+  const materialsSection = document.getElementById('course-materials-section');
+
+  if (materials && materials.length > 0) {
+    materialsSection.classList.remove('hidden');
+    materials.forEach(m => {
+      materialsList.innerHTML += `
+        <a href="${m.file_url}" target="_blank" class="card hover:border-slate-300 transition-colors block">
+          <div class="flex items-start gap-4">
+            <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
+              <i data-lucide="download" class="text-blue-500 w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900">${m.title}</h3>
+              ${m.description ? `<p class="text-sm text-slate-500 mt-1">${m.description}</p>` : ''}
+            </div>
+          </div>
+        </a>
+      `;
+    });
+  }
+
   // Fetch sessions for this course
-  const { data: sessions, error: sessionsError } = await supabase.from('sessions').select('id, title, publish_status').eq('course_id', courseId);
+  const { data: sessions, error: sessionsError } = await supabase.from('sessions').select('id, title, name, publish_status, session_type, due_date, description').eq('course_id', courseId);
   if (sessionsError) console.error("Sessions fetch error:", sessionsError);
 
   let submissions = [];
@@ -317,17 +343,30 @@ async function renderCourse(courseId) {
 
   (sessions || []).forEach(s => {
     const sub = submissions.find(sub => sub.session_id === s.id);
+    const sessionTitle = s.title || s.name || 'Untitled Assignment';
 
     if (!sub) {
       // Pending assignment
       hasPending = true;
       pendingSection.classList.remove('hidden');
+
+      let detailsHtml = '<p class="text-sm text-slate-500 mt-1">Not started</p>';
+      if (s.session_type === 'digital') {
+          const dueDate = s.due_date ? new Date(s.due_date).toLocaleDateString() : 'No due date';
+          detailsHtml = `
+            <div class="flex items-center gap-3 mt-2 text-sm text-slate-500">
+              <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i> Due: ${dueDate}</span>
+              <span class="inline-flex items-center gap-1"><i data-lucide="laptop" class="w-4 h-4"></i> Digital Upload</span>
+            </div>
+          `;
+      }
+
       pendingList.innerHTML += `
         <a href="#assignment/${s.id}" class="card hover:border-slate-300 transition-colors block">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="font-bold text-slate-900">${s.title}</h3>
-              <p class="text-sm text-slate-500 mt-1">Not started</p>
+              <h3 class="font-bold text-slate-900">${sessionTitle}</h3>
+              ${detailsHtml}
             </div>
             <i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>
           </div>
@@ -352,7 +391,7 @@ async function renderCourse(courseId) {
         <a ${linkHtml} class="card hover:border-slate-300 transition-colors block">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="font-bold text-slate-900">${s.title}</h3>
+              <h3 class="font-bold text-slate-900">${sessionTitle}</h3>
               <div class="mt-2">${statusHtml}</div>
             </div>
             ${s.publish_status === 'published' ? `<i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>` : ''}
@@ -512,7 +551,7 @@ async function renderDashboard() {
 }
 
 async function renderAssignment(id) {
-  const { data: session } = await supabase.from('sessions').select('id, title, course_id').eq('id', id).single();
+  const { data: session } = await supabase.from('sessions').select('id, title, name, course_id, session_type, due_date, description').eq('id', id).single();
   if (!session) return renderDashboard();
 
   let courseName = 'Unknown Course';
@@ -525,11 +564,21 @@ async function renderAssignment(id) {
   app.innerHTML = '';
   app.appendChild(tpl);
 
+  const sessionTitle = session.title || session.name || 'Untitled Assignment';
+
+  let detailsHtml = '';
+  if (session.session_type === 'digital' && session.due_date) {
+      detailsHtml = `<p class="mt-2 text-sm font-semibold text-amber-600 flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4"></i> Due: ${new Date(session.due_date).toLocaleString()}</p>`;
+  }
+
   document.getElementById('assignment-header').innerHTML = `
     <p class="text-xs font-bold text-slate-400 uppercase">${courseName}</p>
-    <h1 class="text-2xl font-bold text-slate-900">${session.title}</h1>
+    <h1 class="text-2xl font-bold text-slate-900">${sessionTitle}</h1>
+    ${detailsHtml}
   `;
-  document.getElementById('assignment-desc').textContent = "Please read the assignment instructions provided by your professor.";
+
+  // Use the database description for instructions, or a fallback if physical
+  document.getElementById('assignment-desc').textContent = session.description || (session.session_type === 'digital' ? 'No instructions provided.' : 'Please read the assignment instructions provided by your professor in class.');
 
   let type = 'text';
   const tabText = document.getElementById('tab-text');

@@ -303,7 +303,7 @@ async function renderCourse(courseId) {
     materialsSection.classList.remove('hidden');
     materials.forEach(m => {
       materialsList.innerHTML += `
-        <a href="${m.file_url}" target="_blank" class="card hover:border-slate-300 transition-colors block">
+        <a href="#" id="material-link-${m.id}" class="card hover:border-slate-300 transition-colors block cursor-pointer">
           <div class="flex items-start gap-4">
             <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
               <i data-lucide="download" class="text-blue-500 w-5 h-5"></i>
@@ -315,6 +315,27 @@ async function renderCourse(courseId) {
           </div>
         </a>
       `;
+    });
+
+    materials.forEach(m => {
+      document.getElementById(`material-link-${m.id}`).addEventListener('click', async (e) => {
+        e.preventDefault();
+
+        let filePath = m.file_url;
+        // Extract the path after materials_bucket/ if it's a full URL
+        if (filePath.includes('materials_bucket/')) {
+          filePath = filePath.split('materials_bucket/')[1];
+        }
+
+        const { data, error } = await supabase.storage.from('materials_bucket').createSignedUrl(filePath, 60);
+
+        if (error) {
+          console.error('Error generating signed URL:', error);
+          alert('Failed to download material: ' + error.message);
+        } else if (data && data.signedUrl) {
+          window.open(data.signedUrl, '_blank');
+        }
+      });
     });
   }
 

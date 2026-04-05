@@ -221,7 +221,7 @@ function renderLogin() {
     btn.disabled = true;
     err.classList.add('hidden');
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: document.getElementById('login-email').value,
       password: document.getElementById('login-password').value
     });
@@ -230,6 +230,20 @@ function renderLogin() {
       err.textContent = error.message;
       err.classList.remove('hidden');
       btn.disabled = false;
+      return;
+    }
+
+    if (authData.user) {
+      // Manual student profile insert on first login
+      const { data: studentCheck } = await supabase.from('students').select('id').eq('auth_id', authData.user.id).single();
+      if (!studentCheck) {
+        await supabase.from('students').insert({
+          auth_id: authData.user.id,
+          email: authData.user.email,
+          full_name: authData.user.email.split('@')[0],
+          registration_number: null
+        });
+      }
     }
   });
 }
@@ -648,13 +662,13 @@ async function renderAssignment(id) {
     try {
       if (type === 'pdf' && selectedFile) {
         const ext = selectedFile.name.split('.').pop();
-        const path = `${session.id}/${currentUser.id}_${Date.now()}.${ext}`;
+        const path = `student_submissions/${session.id}/${currentUser.id}.pdf`;
         const { error, data } = await supabase.storage.from('exams_bucket').upload(path, selectedFile);
         if (error) throw error;
         pdfPath = data.path;
       }
 
-      const { data, error } = await supabase.rpc('api_submit_work', {
+      const { data, error } = await supabase.rpc('api_deliver_work', {
         p_session_id: session.id,
         p_text_content: type === 'text' ? document.getElementById('submit-text').value : null,
         p_pdf_path: pdfPath

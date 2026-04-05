@@ -662,24 +662,44 @@ async function renderAssignment(id) {
     try {
       if (type === 'pdf' && selectedFile) {
         const ext = selectedFile.name.split('.').pop();
-        const path = `student_submissions/${session.id}/${currentUser.id}.pdf`;
-        const { error, data } = await supabase.storage.from('exams_bucket').upload(path, selectedFile);
-        if (error) throw error;
-        pdfPath = data.path;
+        const filePath = `student_submissions/${session.id}/${currentUser.id}.pdf`;
+
+        // 1. You MUST await the Storage PDF upload to complete FIRST
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('exams_bucket')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          console.error("File upload failed:", uploadError);
+          err.textContent = uploadError.message;
+          err.classList.remove('hidden');
+          btn.disabled = false;
+          return; // Halt execution immediately to prevent sending null paths to the database
+        }
+        pdfPath = uploadData.path; // This is now a validated, correct path
       }
 
-      const { data, error } = await supabase.rpc('api_deliver_work', {
-        p_session_id: session.id,
-        p_text_content: type === 'text' ? document.getElementById('submit-text').value : null,
+      const textContent = type === 'text' ? document.getElementById('submit-text').value : null;
+
+      // 2. ONLY THEN call the RPC (Ensure the exact name is 'api_submit_work')
+      const { data, error } = await supabase.rpc('api_submit_work', {
+        p_session_id: session.id, // Ensure this is a valid UUID and not null
+        p_text_content: textContent || null,
         p_pdf_path: pdfPath
       });
 
-      if (error) throw error;
-      if (data && !data.success) throw new Error(data.error);
+      if (error) {
+        console.error("RPC Rejected the submission:", error);
+        throw error;
+      } else if (data && !data.success) {
+        throw new Error(data.error);
+      } else {
+        console.log("Work submitted successfully! Database confirmed.");
+        app.innerHTML = '';
+        app.appendChild(document.getElementById('tpl-success').content.cloneNode(true));
+        lucide.createIcons();
+      }
 
-      app.innerHTML = '';
-      app.appendChild(document.getElementById('tpl-success').content.cloneNode(true));
-      lucide.createIcons();
     } catch (error) {
       err.textContent = error.message;
       err.classList.remove('hidden');

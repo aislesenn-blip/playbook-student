@@ -214,9 +214,12 @@
 
           <div id="container-text" class="card p-0 overflow-hidden relative">
             <textarea id="submit-text" required class="w-full h-64 p-6 outline-none resize-none text-base text-slate-900" placeholder="Type your answer here..."></textarea>
-            <div id="grammar-check-banner" class="hidden absolute bottom-0 left-0 w-full bg-amber-50 border-t border-amber-200 p-3 flex justify-between items-center shadow-inner">
-              <p id="grammar-suggestion" class="text-sm font-bold text-amber-700 truncate mr-4">Grammar Check</p>
-              <button type="button" id="btn-dismiss-grammar" class="text-amber-500 hover:text-amber-900 transition-colors p-1 bg-amber-100 rounded-full">
+            <div id="grammar-check-banner" class="hidden absolute bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-3 flex justify-between items-center shadow-inner">
+              <div class="flex items-center gap-2 truncate mr-4">
+                <img src="images/playbook-logo.png" class="h-4 w-auto mix-blend-multiply" alt="AI">
+                <p id="grammar-suggestion" class="text-sm font-bold text-slate-700 truncate">Playbook AI</p>
+              </div>
+              <button type="button" id="btn-dismiss-grammar" class="text-slate-400 hover:text-slate-900 transition-colors p-1 bg-slate-200 rounded-full">
                 <i data-lucide="x" class="w-4 h-4"></i>
               </button>
             </div>

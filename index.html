@@ -9,6 +9,9 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- ics.js (Requires ics.js dependencies) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ics.js/0.2.0/ics.min.js"></script>
   <script src="env.js"></script>
   <script type="module" src="app.js" defer></script>
 </head>
@@ -28,6 +31,9 @@
 
   <!-- Modals Container -->
   <div id="modals-container"></div>
+
+  <!-- Smart Tooltip Container -->
+  <div id="smart-tooltip" class="fixed z-50 hidden max-w-sm bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 transition-opacity opacity-0 pointer-events-none transform translate-y-2"></div>
 
   <!-- Templates -->
   <template id="tpl-login">
@@ -137,9 +143,14 @@
       </section>
 
       <!-- Task Filters (Airbnb style pills) -->
-      <div class="flex gap-2 mb-6 border-b border-slate-100 pb-2">
-        <button id="filter-todo" class="px-4 py-2 text-sm font-bold border-b-2 border-slate-900 text-slate-900 transition-all">To Do</button>
-        <button id="filter-done" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-900 transition-all">Completed</button>
+      <div class="flex items-center justify-between mb-6 border-b border-slate-100 pb-2">
+        <div class="flex gap-2">
+          <button id="filter-todo" class="px-4 py-2 text-sm font-bold border-b-2 border-slate-900 text-slate-900 transition-all">To Do</button>
+          <button id="filter-done" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-900 transition-all">Completed</button>
+        </div>
+        <button id="btn-sync-calendar" class="hidden flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition-all">
+          <i data-lucide="calendar" class="w-4 h-4"></i> Sync to Calendar
+        </button>
       </div>
 
       <!-- Task Lists Container -->
@@ -201,8 +212,14 @@
         <form id="form-submit-work" class="space-y-6">
           <div id="submit-error" class="bg-red-50 text-red-500 p-4 rounded-[16px] text-sm hidden"></div>
 
-          <div id="container-text" class="card p-0 overflow-hidden">
+          <div id="container-text" class="card p-0 overflow-hidden relative">
             <textarea id="submit-text" required class="w-full h-64 p-6 outline-none resize-none text-base text-slate-900" placeholder="Type your answer here..."></textarea>
+            <div id="grammar-check-banner" class="hidden absolute bottom-0 left-0 w-full bg-amber-50 border-t border-amber-200 p-3 flex justify-between items-center shadow-inner">
+              <p id="grammar-suggestion" class="text-sm font-bold text-amber-700 truncate mr-4">Grammar Check</p>
+              <button type="button" id="btn-dismiss-grammar" class="text-amber-500 hover:text-amber-900 transition-colors p-1 bg-amber-100 rounded-full">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
           </div>
 
           <div id="container-pdf" class="hidden card border-2 border-dashed border-slate-200 text-center hover:border-slate-500 cursor-pointer relative">

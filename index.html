@@ -16,11 +16,8 @@
 
   <!-- Navigation Bar -->
   <header id="main-header" class="bg-white/80 backdrop-blur-xl sticky top-0 z-10 border-b border-slate-200/50 px-6 py-4 flex justify-between items-center hidden">
-    <div class="flex items-center gap-2 cursor-pointer" onclick="window.location.hash=''">
-      <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-        <i data-lucide="graduation-cap" class="text-white w-5 h-5"></i>
-      </div>
-      <h1 class="text-lg font-bold text-slate-900 tracking-tight">Playbook Student</h1>
+    <div class="flex items-center cursor-pointer" onclick="window.location.hash=''">
+      <img src="images/playbook-logo.png" alt="Playbook" class="h-8 w-auto mix-blend-multiply" style="object-fit: contain;">
     </div>
     <button id="btn-logout" class="p-2 text-slate-500 hover:text-black transition-colors rounded-full hover:bg-slate-100">
       <i data-lucide="log-out" class="w-5 h-5"></i>
@@ -37,9 +34,7 @@
     <div class="min-h-[80vh] flex items-center justify-center">
       <div class="w-full max-w-sm space-y-8">
         <div class="text-center flex flex-col items-center mb-8">
-          <div class="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mb-6 shadow-xl">
-            <i data-lucide="graduation-cap" class="text-white w-10 h-10"></i>
-          </div>
+          <img src="images/playbook-logo.png" alt="Playbook" class="h-16 w-auto mix-blend-multiply mb-6" style="object-fit: contain;">
           <h2 class="text-3xl font-bold tracking-tight text-slate-900">Welcome</h2>
           <p class="mt-2 text-sm text-slate-500">Sign in to your portal</p>
         </div>
@@ -60,13 +55,13 @@
 
   <template id="tpl-register">
     <div class="min-h-[80vh] flex items-center justify-center">
-      <div class="w-full max-w-md space-y-8 card">
-        <div class="text-center flex flex-col items-center">
-          <img src="images/logo.png" alt="Playbook Logo" class="h-28 w-auto filter invert mix-blend-multiply opacity-90 object-cover" style="clip-path: inset(30% 22% 30% 22%); margin-top: -2rem; margin-bottom: -1.5rem;">
+      <div class="w-full max-w-sm space-y-8">
+        <div class="text-center flex flex-col items-center mb-8">
+          <img src="images/playbook-logo.png" alt="Playbook" class="h-16 w-auto mix-blend-multiply mb-6" style="object-fit: contain;">
           <h2 class="text-3xl font-bold tracking-tight text-slate-900">Create Account</h2>
           <p class="mt-2 text-sm text-slate-500">Join the student portal</p>
         </div>
-        <form id="form-register" class="mt-8 space-y-6">
+        <form id="form-register" class="space-y-6 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
           <div id="register-error" class="bg-red-50 text-red-500 p-4 rounded-2xl text-sm hidden"></div>
           <div class="space-y-4">
             <input type="text" id="reg-name" required class="input-field bg-slate-50 border-none" placeholder="Full Name">

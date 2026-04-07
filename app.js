@@ -41,16 +41,39 @@ function setupSmartTooltip() {
 
     if (text.length > 2 && text.length < 40) {
       try {
-        const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(text)}`);
-        if (!response.ok) return tooltip.classList.add('hidden');
+        // Fallback to Free Dictionary API if Wikipedia fails or returns a disambiguation page
+        let title = text;
+        let extract = '';
+        let thumbnail = null;
 
-        const data = await response.json();
-        if (data.type === 'standard') {
+        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(text)}`);
+        if (wikiRes.ok) {
+          const wikiData = await wikiRes.json();
+          if (wikiData.type === 'standard') {
+            title = wikiData.title;
+            extract = wikiData.extract;
+            thumbnail = wikiData.thumbnail ? wikiData.thumbnail.source : null;
+          }
+        }
+
+        // If Wikipedia missed, try the Dictionary API aggressively
+        if (!extract) {
+          const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(text)}`);
+          if (dictRes.ok) {
+            const dictData = await dictRes.json();
+            if (dictData.length > 0 && dictData[0].meanings.length > 0) {
+              title = dictData[0].word;
+              extract = dictData[0].meanings[0].definitions[0].definition;
+            }
+          }
+        }
+
+        if (extract) {
           const rect = selection.getRangeAt(0).getBoundingClientRect();
 
           let imgHtml = '';
-          if (data.thumbnail) {
-            imgHtml = `<img src="${data.thumbnail.source}" class="w-16 h-16 object-cover rounded-lg float-right ml-3 mb-1 shadow-sm">`;
+          if (thumbnail) {
+            imgHtml = `<img src="${thumbnail}" class="w-16 h-16 object-cover rounded-lg float-right ml-3 mb-1 shadow-sm">`;
           }
 
           tooltip.innerHTML = `
@@ -58,8 +81,8 @@ function setupSmartTooltip() {
               <i data-lucide="sparkles" class="w-4 h-4 text-purple-500"></i> Playbook AI
             </div>
             ${imgHtml}
-            <h4 class="font-bold text-slate-900 mb-1">${data.title}</h4>
-            <p class="text-xs text-slate-600 leading-relaxed">${data.extract}</p>
+            <h4 class="font-bold text-slate-900 mb-1 capitalize">${title}</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">${extract}</p>
           `;
 
           lucide.createIcons({root: tooltip});
@@ -284,59 +307,57 @@ async function renderGradeReview(subId) {
           </div>
           <p class="text-slate-700 text-sm leading-relaxed">${item.constructive_feedback || 'No feedback provided.'}</p>
         </div>
-        <div class="p-4 border-t border-slate-50 bg-slate-50/50" id="appeal-container-${qId}">
-          <button id="btn-open-appeal-${qId}" class="w-full flex items-center justify-center gap-2 text-sm font-bold text-slate-500 hover:text-black transition-colors py-2 rounded-xl hover:bg-slate-200">
-            <i data-lucide="flag" class="w-4 h-4"></i> Dispute
-          </button>
-        </div>
       `;
       feedbackList.appendChild(div);
+    });
+  }
 
-      // Handle Appeal Setup
-      const container = document.getElementById(`appeal-container-${qId}`);
-      document.getElementById(`btn-open-appeal-${qId}`).onclick = () => {
-        container.innerHTML = `
-          <div class="w-full flex gap-2 fade-in">
-            <input type="text" id="appeal-reason-${qId}" placeholder="Explain why..." class="flex-1 px-4 py-2 rounded-xl border border-slate-200 outline-none focus:border-slate-900 text-sm transition-all">
-            <button id="btn-submit-appeal-${qId}" class="px-6 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-sm transition-colors">Send</button>
-            <button id="btn-cancel-appeal-${qId}" class="px-4 py-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors">Cancel</button>
+  // Handle Exam-Level Appeal
+  const examAppealBtn = document.getElementById('btn-open-exam-appeal');
+  const examAppealContainer = document.getElementById('exam-appeal-container');
+
+  if (examAppealBtn && examAppealContainer) {
+    examAppealBtn.onclick = () => {
+      examAppealContainer.innerHTML = `
+        <div class="max-w-xl mx-auto flex flex-col gap-3 fade-in bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <p class="text-sm font-bold text-slate-900 mb-1">Dispute Exam Grade</p>
+          <textarea id="exam-appeal-reason" placeholder="Please explain why you are disputing the overall score..." class="w-full h-24 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:border-black text-sm resize-none"></textarea>
+          <div class="flex gap-2 justify-end">
+            <button id="btn-cancel-exam-appeal" class="px-5 py-2 text-slate-500 hover:text-black hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors">Cancel</button>
+            <button id="btn-submit-exam-appeal" class="px-6 py-2 bg-black hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md transition-colors">Submit Appeal</button>
           </div>
-        `;
-        document.getElementById(`btn-cancel-appeal-${qId}`).onclick = () => {
-          container.innerHTML = `
-            <button id="btn-open-appeal-${qId}" class="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
-              <i data-lucide="flag" class="w-3 h-3"></i> Dispute
-            </button>
+        </div>
+      `;
+
+      document.getElementById('btn-cancel-exam-appeal').onclick = () => {
+        // Just re-render the view to restore the button
+        renderGradeReview(subId);
+      };
+
+      document.getElementById('btn-submit-exam-appeal').onclick = async () => {
+        const reason = document.getElementById('exam-appeal-reason').value;
+        if (!reason) return;
+
+        // Use 'entire_exam' as the question_id for exam-level appeals
+        const { error } = await supabase.from('appeals').insert({
+          submission_id: subId,
+          student_id: currentStudentId,
+          question_id: 'entire_exam',
+          reason: reason
+        });
+
+        if (!error) {
+          examAppealContainer.innerHTML = `
+            <div class="max-w-xl mx-auto flex items-center justify-center gap-2 px-6 py-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl font-bold text-sm shadow-sm fade-in">
+              <i data-lucide="check-circle" class="w-5 h-5"></i> Exam Appeal Submitted to Professor
+            </div>
           `;
           lucide.createIcons();
-          // We would re-attach the event listener here if they cancelled, but for simplicity:
-          // it's easier to re-render the whole page or recursively call the bind function.
-        };
-
-        document.getElementById(`btn-submit-appeal-${qId}`).onclick = async () => {
-          const reason = document.getElementById(`appeal-reason-${qId}`).value;
-          if (!reason) return;
-
-          const { error } = await supabase.from('appeals').insert({
-            submission_id: subId,
-            student_id: currentStudentId,
-            question_id: qId,
-            reason: reason
-          });
-
-          if (!error) {
-            container.innerHTML = `
-              <span class="flex items-center gap-2 text-sm font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full">
-                <i data-lucide="check-circle" class="w-4 h-4"></i> Appeal Submitted
-              </span>
-            `;
-            lucide.createIcons();
-          } else {
-            alert('Failed to submit appeal');
-          }
-        };
+        } else {
+          alert('Failed to submit appeal');
+        }
       };
-    });
+    };
   }
 
   lucide.createIcons();

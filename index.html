@@ -18,7 +18,7 @@
 <body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
 
   <!-- Navigation Bar -->
-  <header id="main-header" class="bg-white/80 backdrop-blur-xl sticky top-0 z-10 border-b border-slate-200/50 px-6 py-4 flex justify-between items-center hidden">
+  <header id="main-header" class="bg-white/80 backdrop-blur-xl sticky top-0 z-10 border-b border-slate-200/50 px-4 md:px-6 py-4 flex justify-between items-center hidden">
     <div class="flex items-center cursor-pointer" onclick="window.location.hash=''">
       <img src="images/playbook-logo.png" alt="Playbook" class="h-8 w-auto mix-blend-multiply" style="object-fit: contain;">
     </div>
@@ -27,7 +27,34 @@
     </button>
   </header>
 
-  <main id="app-container" class="max-w-3xl mx-auto px-4 py-8"></main>
+  <main id="app-container" class="max-w-3xl mx-auto px-4 py-8 pb-32 md:pb-8"></main>
+
+  <!-- Mobile Bottom Navigation (Instagram/TikTok style) -->
+  <nav id="mobile-nav" class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-2xl border-t border-slate-200/50 flex justify-around items-center px-6 py-3 pb-8 z-40 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] hidden">
+    <button id="mob-tab-overview" class="flex flex-col items-center gap-1 text-black transition-transform active:scale-95">
+      <i data-lucide="home" class="w-6 h-6"></i>
+      <span class="text-[10px] font-bold">Home</span>
+    </button>
+    <button id="mob-tab-classes" class="flex flex-col items-center gap-1 text-slate-400 hover:text-black transition-all active:scale-95">
+      <i data-lucide="book-open" class="w-6 h-6"></i>
+      <span class="text-[10px] font-bold">Classes</span>
+    </button>
+    <div class="relative -top-6">
+      <button id="mob-btn-open-join" class="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-2xl shadow-black/30 border-4 border-white active:scale-95 transition-transform">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+      </button>
+    </div>
+    <button id="mob-tab-tasks" class="flex flex-col items-center gap-1 text-slate-400 hover:text-black transition-all active:scale-95">
+      <i data-lucide="clock" class="w-6 h-6"></i>
+      <span class="text-[10px] font-bold">Tasks</span>
+    </button>
+    <button id="mob-tab-profile" class="flex flex-col items-center gap-1 text-slate-400 hover:text-black transition-all active:scale-95">
+      <div class="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center border border-slate-300 overflow-hidden">
+        <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+      </div>
+      <span class="text-[10px] font-bold">Profile</span>
+    </button>
+  </nav>
 
   <!-- Modals Container -->
   <div id="modals-container"></div>

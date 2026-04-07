@@ -1,63 +1,89 @@
 :root {
-  --color-brand-50: #f8fafc;
-  --color-brand-100: #f1f5f9;
-  --color-brand-300: #cbd5e1;
-  --color-brand-500: #64748b;
-  --color-brand-600: #0f172a;
-  --color-brand-700: #020617;
+  --color-brand-50: #f5f3ff; /* Soft purple */
+  --color-brand-100: #ede9fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-500: #8b5cf6; /* Vibrant primary */
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
 }
 
 body {
-  background-color: #f8fafc;
+  background: radial-gradient(circle at top left, #f8fafc, #f5f3ff, #f8fafc);
   color: #0f172a;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 /* Base utility overrides for "Billion Dollar App" aesthetic */
 .btn-primary {
-  background-color: var(--color-brand-600);
+  background: linear-gradient(135deg, var(--color-brand-500), var(--color-brand-600));
   color: white;
   border-radius: 9999px; /* Pill */
   padding: 1rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   text-align: center;
   border: none;
   cursor: pointer;
+  box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.3);
 }
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--color-brand-700);
+  transform: translateY(-2px);
+  box-shadow: 0 15px 25px -5px rgba(139, 92, 246, 0.4);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .btn-primary:disabled {
-  opacity: 0.5;
+  background: #cbd5e1;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
 .input-field {
   width: 100%;
-  padding: 1rem;
-  border-radius: 16px;
+  padding: 1.2rem;
+  border-radius: 20px;
   background-color: white;
-  border: 1px solid #e2e8f0;
+  border: 2px solid transparent;
   outline: none;
   font-size: 1rem;
-  transition: border-color 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
 }
 .input-field:focus {
-  border-color: var(--color-brand-500);
-  box-shadow: 0 0 0 2px var(--color-brand-100);
+  border-color: var(--color-brand-300);
+  box-shadow: 0 0 0 4px var(--color-brand-100);
 }
 
 .card {
-  background-color: white;
-  border-radius: 24px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  border: 1px solid #f1f5f9;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 28px;
+  padding: 1.75rem;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+}
+
+/* Hover effect for clickable cards */
+a.card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 25px 50px -12px rgba(139, 92, 246, 0.15);
+  border-color: var(--color-brand-100);
 }
 
 .hidden {
   display: none !important;
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

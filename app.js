@@ -137,29 +137,23 @@ async function renderGradeReview(subId) {
     items.forEach((item, index) => {
       const qId = item.id || index.toString();
       const div = document.createElement('div');
-      div.className = 'card p-0 overflow-hidden border-2 hover:border-purple-200 transition-colors group';
-
-      const isPerfect = item.score === item.maxScore;
-      const scoreBadge = isPerfect
-        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-        : 'bg-amber-100 text-amber-700 border-amber-200';
-      const scoreIcon = isPerfect ? '<i data-lucide="check-circle" class="w-4 h-4"></i>' : '<i data-lucide="target" class="w-4 h-4"></i>';
+      div.className = 'card p-0 overflow-hidden group';
 
       div.innerHTML = `
         <div class="p-6 border-b border-slate-50">
           <div class="flex justify-between items-start gap-4 mb-4">
-            <h3 class="text-lg font-bold text-slate-900 flex-1 leading-snug">${item.question || `Question ${index + 1}`}</h3>
-            <div class="px-4 py-1.5 rounded-full text-sm font-bold flex-shrink-0 flex items-center gap-1.5 border shadow-sm ${scoreBadge}">
-              ${scoreIcon} ${item.score ?? '-'} / ${item.maxScore ?? '-'}
+            <h3 class="text-base font-bold text-slate-900 flex-1 leading-snug">${item.question || `Question ${index + 1}`}</h3>
+            <div class="px-3 py-1 rounded-lg text-sm font-bold flex-shrink-0 bg-slate-100 text-slate-900 border border-slate-200">
+              ${item.score ?? '-'} / ${item.maxScore ?? '-'}
             </div>
           </div>
-          <div class="bg-slate-50 p-5 rounded-[20px] shadow-inner">
-            <p class="text-slate-700 leading-relaxed">${item.aiNote || 'No feedback provided.'}</p>
+          <div class="bg-slate-50 p-4 rounded-xl">
+            <p class="text-slate-700 text-sm leading-relaxed">${item.aiNote || 'No feedback provided.'}</p>
           </div>
         </div>
-        <div class="bg-slate-50/30 p-4 px-6 flex justify-end" id="appeal-container-${qId}">
-          <button id="btn-open-appeal-${qId}" class="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-purple-600 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
-            <i data-lucide="flag" class="w-4 h-4"></i> Dispute
+        <div class="bg-slate-50/50 p-4 px-6 flex justify-end" id="appeal-container-${qId}">
+          <button id="btn-open-appeal-${qId}" class="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+            <i data-lucide="flag" class="w-3 h-3"></i> Dispute
           </button>
         </div>
       `;
@@ -170,15 +164,15 @@ async function renderGradeReview(subId) {
       document.getElementById(`btn-open-appeal-${qId}`).onclick = () => {
         container.innerHTML = `
           <div class="w-full flex gap-2 fade-in">
-            <input type="text" id="appeal-reason-${qId}" placeholder="Explain why..." class="flex-1 px-4 py-2 rounded-full border border-slate-200 outline-none focus:border-purple-300 focus:ring-4 focus:ring-purple-50 text-sm shadow-inner transition-all">
-            <button id="btn-submit-appeal-${qId}" class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full text-sm font-bold shadow-md transition-colors">Send</button>
-            <button id="btn-cancel-appeal-${qId}" class="px-4 py-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full text-sm font-bold transition-colors">Cancel</button>
+            <input type="text" id="appeal-reason-${qId}" placeholder="Explain why..." class="flex-1 px-4 py-2 rounded-xl border border-slate-200 outline-none focus:border-slate-900 text-sm transition-all">
+            <button id="btn-submit-appeal-${qId}" class="px-6 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow-sm transition-colors">Send</button>
+            <button id="btn-cancel-appeal-${qId}" class="px-4 py-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors">Cancel</button>
           </div>
         `;
         document.getElementById(`btn-cancel-appeal-${qId}`).onclick = () => {
           container.innerHTML = `
-            <button id="btn-open-appeal-${qId}" class="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-purple-600 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100">
-              <i data-lucide="flag" class="w-4 h-4"></i> Dispute
+            <button id="btn-open-appeal-${qId}" class="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+              <i data-lucide="flag" class="w-3 h-3"></i> Dispute
             </button>
           `;
           lucide.createIcons();
@@ -461,6 +455,26 @@ async function renderDashboard() {
   app.innerHTML = '';
   app.appendChild(tpl);
 
+  // Task Filter Logic
+  const btnTodo = document.getElementById('filter-todo');
+  const btnDone = document.getElementById('filter-done');
+  const listTodo = document.getElementById('pending-list');
+  const listDone = document.getElementById('graded-list');
+
+  btnTodo.addEventListener('click', () => {
+    btnTodo.className = "px-4 py-2 text-sm font-bold border-b-2 border-slate-900 text-slate-900 transition-all";
+    btnDone.className = "px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-900 transition-all";
+    listTodo.classList.remove('hidden');
+    listDone.classList.add('hidden');
+  });
+
+  btnDone.addEventListener('click', () => {
+    btnDone.className = "px-4 py-2 text-sm font-bold border-b-2 border-slate-900 text-slate-900 transition-all";
+    btnTodo.className = "px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-900 transition-all";
+    listDone.classList.remove('hidden');
+    listTodo.classList.add('hidden');
+  });
+
   // Setup Join Modal
   document.getElementById('btn-open-join').addEventListener('click', () => {
     const modalTpl = document.getElementById('tpl-join-modal').content.cloneNode(true);
@@ -511,14 +525,13 @@ async function renderDashboard() {
     }
 
     rawEnrollments.forEach(e => {
-      // NOTE: Playbook Student Portal focuses on assignments/sessions, not course-specific pages yet.
-      // But if there were a course view, it would link like: <a href="#course/${e.course_id}" ...>
       classList.innerHTML += `
-        <a href="#course/${e.course_id}" class="card hover:border-slate-300 transition-colors block cursor-pointer">
-          <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-            <i data-lucide="book" class="text-slate-600 w-5 h-5"></i>
+        <a href="#course/${e.course_id}" class="min-w-[140px] max-w-[140px] p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 hover:shadow-md transition-all block cursor-pointer snap-start group">
+          <div class="w-10 h-10 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <i data-lucide="book-open" class="text-slate-900 w-4 h-4"></i>
           </div>
-          <h3 class="font-bold text-slate-900">${courseLookup[e.course_id] || 'Unknown Course'}</h3>
+          <h3 class="font-bold text-sm text-slate-900 truncate">${courseLookup[e.course_id] || 'Unknown Course'}</h3>
+          <p class="text-xs text-slate-400 mt-1">View Details</p>
         </a>
       `;
     });
@@ -545,16 +558,25 @@ async function renderDashboard() {
     const pending = sessions?.filter(s => !submittedIds.has(s.id)) || [];
 
     if (pending.length > 0) {
-      document.getElementById('pending-section').classList.remove('hidden');
       const pList = document.getElementById('pending-list');
       pending.forEach(s => {
         pList.innerHTML += `
-          <a href="#assignment/${s.id}" class="block card hover:border-slate-300 transition-colors group">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-1">${courseLookup[s.course_id] || 'Unknown Course'}</p>
-            <h3 class="font-bold text-slate-900 group-hover:text-slate-600 transition-colors">${s.title}</h3>
+          <a href="#assignment/${s.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
+            <div>
+              <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-1"></div>${courseLookup[s.course_id] || 'Unknown Course'}</p>
+              <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${s.title}</h3>
+            </div>
+            <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
           </a>
         `;
       });
+    } else {
+      document.getElementById('pending-list').innerHTML = `
+        <div class="text-center py-10 bg-white border border-slate-100 rounded-2xl shadow-sm">
+          <i data-lucide="check-circle-2" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+          <p class="text-slate-500 text-sm font-semibold">You're all caught up!</p>
+        </div>
+      `;
     }
 
     // Identify recently graded
@@ -562,7 +584,6 @@ async function renderDashboard() {
     if (submissions && sessions) {
       submissions.forEach(sub => {
         const session = sessions.find(s => s.id === sub.session_id);
-        // Fix: If publish_status is published, consider it graded even if sub.status isn't exactly 'completed'
         if (session && session.publish_status === 'published') {
           graded.push({ sub, session });
         }
@@ -585,16 +606,13 @@ async function renderDashboard() {
         dataPoints.push(g.sub.score || 0);
 
         gList.innerHTML += `
-          <a href="#grade/${g.sub.id}" class="block card border-l-4 border-emerald-400 group">
-            <div class="flex justify-between items-center">
-              <div>
-                <h3 class="font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">${g.session.title}</h3>
-                <p class="text-slate-500 text-sm mt-1 font-semibold">Score: <span class="text-emerald-600">${g.sub.score ?? 'N/A'}%</span></p>
-              </div>
-              <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform shadow-sm">
-                <i data-lucide="award" class="w-5 h-5"></i>
-              </div>
+          <a href="#grade/${g.sub.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
+            <div>
+              <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider">${courseLookup[g.session.course_id] || 'Unknown Course'}</p>
+              <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${g.session.title}</h3>
+              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${g.sub.score ?? 'N/A'}%</span></p>
             </div>
+            <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
           </a>
         `;
       });
@@ -607,22 +625,22 @@ async function renderDashboard() {
             datasets: [{
               label: 'Scores (%)',
               data: dataPoints,
-              borderColor: '#8b5cf6',
-              backgroundColor: 'rgba(139, 92, 246, 0.2)',
-              borderWidth: 3,
+              borderColor: '#111827', // Black
+              backgroundColor: 'rgba(17, 24, 39, 0.05)',
+              borderWidth: 2,
               pointBackgroundColor: '#fff',
-              pointBorderColor: '#8b5cf6',
+              pointBorderColor: '#111827',
               pointBorderWidth: 2,
-              pointRadius: 5,
+              pointRadius: 4,
               fill: true,
-              tension: 0.4 // Soft curve
+              tension: 0.2
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-              y: { beginAtZero: true, max: 100, grid: { borderDash: [5, 5], color: '#f1f5f9' } },
+              y: { beginAtZero: true, max: 100, grid: { borderDash: [4, 4], color: '#f3f4f6' } },
               x: { grid: { display: false } }
             },
             plugins: {
@@ -631,6 +649,8 @@ async function renderDashboard() {
           }
         });
       }
+    } else {
+        document.getElementById('graded-list').innerHTML = `<p class="text-slate-500 text-sm">No completed assignments yet.</p>`;
     }
   }
   lucide.createIcons();

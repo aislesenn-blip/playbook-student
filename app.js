@@ -128,7 +128,22 @@ async function renderGradeReview(subId) {
   document.getElementById('grade-title').textContent = sessionData.title;
   document.getElementById('grade-score').textContent = `${subData.score ?? 'N/A'}%`;
 
+  // Trigger Confetti if score > 80
+  if (subData.score > 80 && window.confetti) {
+    setTimeout(() => {
+      window.confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#000000', '#d1d5db', '#111827'] // Apple grayscale confetti
+      });
+    }, 500);
+  }
+
   const feedbackList = document.getElementById('feedback-list');
+  // Make the feedback list a horizontal scrollable snap container (Flashcards)
+  feedbackList.className = "flex gap-6 overflow-x-auto pb-8 hide-scrollbar snap-x";
+
   const items = subData.ai_feedback && Array.isArray(subData.ai_feedback) ? subData.ai_feedback : [];
 
   if (items.length === 0) {
@@ -137,23 +152,24 @@ async function renderGradeReview(subId) {
     items.forEach((item, index) => {
       const qId = item.id || index.toString();
       const div = document.createElement('div');
-      div.className = 'card p-0 overflow-hidden group';
+      div.className = 'min-w-[300px] max-w-[300px] snap-center bg-white border border-slate-100 rounded-[24px] shadow-sm flex flex-col justify-between overflow-hidden relative group transition-transform hover:-translate-y-1';
 
       div.innerHTML = `
-        <div class="p-6 border-b border-slate-50">
-          <div class="flex justify-between items-start gap-4 mb-4">
-            <h3 class="text-base font-bold text-slate-900 flex-1 leading-snug">${item.question || `Question ${index + 1}`}</h3>
-            <div class="px-3 py-1 rounded-lg text-sm font-bold flex-shrink-0 bg-slate-100 text-slate-900 border border-slate-200">
+        <div class="p-6">
+          <div class="flex justify-between items-start gap-4 mb-6">
+            <div class="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+              Q${index + 1}
+            </div>
+            <div class="px-3 py-1 rounded-full text-sm font-bold flex-shrink-0 bg-slate-100 text-slate-900">
               ${item.score ?? '-'} / ${item.maxScore ?? '-'}
             </div>
           </div>
-          <div class="bg-slate-50 p-4 rounded-xl">
-            <p class="text-slate-700 text-sm leading-relaxed">${item.aiNote || 'No feedback provided.'}</p>
-          </div>
+          <h3 class="text-lg font-bold text-slate-900 mb-4 leading-tight">${item.question || 'Untitled Question'}</h3>
+          <p class="text-slate-500 text-sm leading-relaxed">${item.aiNote || 'No feedback provided.'}</p>
         </div>
-        <div class="bg-slate-50/50 p-4 px-6 flex justify-end" id="appeal-container-${qId}">
-          <button id="btn-open-appeal-${qId}" class="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
-            <i data-lucide="flag" class="w-3 h-3"></i> Dispute
+        <div class="p-4 border-t border-slate-50 bg-slate-50/50" id="appeal-container-${qId}">
+          <button id="btn-open-appeal-${qId}" class="w-full flex items-center justify-center gap-2 text-sm font-bold text-slate-500 hover:text-black transition-colors py-2 rounded-xl hover:bg-slate-200">
+            <i data-lucide="flag" class="w-4 h-4"></i> Dispute
           </button>
         </div>
       `;
@@ -591,7 +607,6 @@ async function renderDashboard() {
     }
 
     if (graded.length > 0) {
-      document.getElementById('graded-section').classList.remove('hidden');
       const gList = document.getElementById('graded-list');
 
       // Render Chart.js
@@ -618,35 +633,44 @@ async function renderDashboard() {
       });
 
       if (window.Chart && ctx) {
+        // Calculate average for the doughnut
+        const avgScore = dataPoints.length > 0 ? dataPoints.reduce((a, b) => a + b, 0) / dataPoints.length : 0;
+        const remainder = 100 - avgScore;
+
         new window.Chart(ctx, {
-          type: 'line',
+          type: 'doughnut',
           data: {
-            labels: labels,
+            labels: ['Average Score', 'Remaining'],
             datasets: [{
-              label: 'Scores (%)',
-              data: dataPoints,
-              borderColor: '#111827', // Black
-              backgroundColor: 'rgba(17, 24, 39, 0.05)',
-              borderWidth: 2,
-              pointBackgroundColor: '#fff',
-              pointBorderColor: '#111827',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              fill: true,
-              tension: 0.2
+              data: [avgScore, remainder],
+              backgroundColor: ['#111827', '#f3f4f6'],
+              borderWidth: 0,
+              borderRadius: [20, 0],
+              cutout: '80%'
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-              y: { beginAtZero: true, max: 100, grid: { borderDash: [4, 4], color: '#f3f4f6' } },
-              x: { grid: { display: false } }
-            },
             plugins: {
-              legend: { display: false }
+              legend: { display: false },
+              tooltip: { enabled: false }
             }
-          }
+          },
+          plugins: [{
+            id: 'centerText',
+            beforeDraw: function(chart) {
+              const width = chart.width, height = chart.height, ctx = chart.ctx;
+              ctx.restore();
+              const fontSize = (height / 80).toFixed(2);
+              ctx.font = "bold " + fontSize + "em -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle = "#111827";
+              const text = Math.round(avgScore) + "%", textX = Math.round((width - ctx.measureText(text).width) / 2), textY = height / 2;
+              ctx.fillText(text, textX, textY);
+              ctx.save();
+            }
+          }]
         });
       }
     } else {

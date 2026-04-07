@@ -161,14 +161,15 @@ async function render() {
 }
 
 async function renderGradeReview(subId) {
-  const { data: subData } = await supabase
+  const { data: subData, error: fetchError } = await supabase
     .from('exam_submissions')
     .select(`
-      id, status, score, ai_feedback, session_id
+      id, status, total_score, grading_data, session_id
     `)
     .eq('id', subId)
     .single();
 
+  if (fetchError) console.error("Error fetching submission details:", fetchError);
   if (!subData) return renderDashboard();
 
   const { data: sessionData } = await supabase.from('sessions').select('title, publish_status, course_id').eq('id', subData.session_id).single();
@@ -189,10 +190,10 @@ async function renderGradeReview(subId) {
 
   document.getElementById('grade-course-name').textContent = courseName;
   document.getElementById('grade-title').textContent = sessionData.title;
-  document.getElementById('grade-score').textContent = `${subData.score ?? 'N/A'}%`;
+  document.getElementById('grade-score').textContent = `${subData.total_score ?? 'N/A'}%`;
 
   // Trigger Confetti if score > 80
-  if (subData.score > 80 && window.confetti) {
+  if (subData.total_score > 80 && window.confetti) {
     setTimeout(() => {
       window.confetti({
         particleCount: 100,
@@ -207,7 +208,7 @@ async function renderGradeReview(subId) {
   // Make the feedback list a horizontal scrollable snap container (Flashcards)
   feedbackList.className = "flex gap-6 overflow-x-auto pb-8 hide-scrollbar snap-x";
 
-  const items = subData.ai_feedback && Array.isArray(subData.ai_feedback) ? subData.ai_feedback : [];
+  const items = subData.grading_data && Array.isArray(subData.grading_data) ? subData.grading_data : [];
 
   if (items.length === 0) {
     feedbackList.innerHTML = `<div class="card text-center text-slate-500">No detailed question feedback available yet.</div>`;
@@ -490,12 +491,12 @@ async function renderCourse(courseId) {
 
   let submissions = [];
   if (window.registrationNumber) {
-    const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('registration_number', window.registrationNumber);
+    const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('registration_number', window.registrationNumber);
     submissions = data || [];
   } else if (currentUser?.email) {
     // Fallback
     const studentName = currentUser.email.split('@')[0];
-    const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('student_name', studentName);
+    const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('student_name', studentName);
     submissions = data || [];
   }
 
@@ -677,10 +678,10 @@ async function renderDashboard() {
     // Fetch submissions based on registration_number (with fallback to student_name if reg number is null)
     let submissions = [];
     if (window.registrationNumber) {
-      const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('registration_number', window.registrationNumber);
+      const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('registration_number', window.registrationNumber);
       submissions = data || [];
     } else {
-      const { data } = await supabase.from('exam_submissions').select('id, session_id, status').eq('student_name', window.studentName);
+      const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('student_name', window.studentName);
       submissions = data || [];
     }
 
@@ -749,14 +750,14 @@ async function renderDashboard() {
 
       graded.forEach(g => {
         labels.push(g.session.title || 'Assignment');
-        dataPoints.push(g.sub.score || 0);
+        dataPoints.push(g.sub.total_score || 0);
 
         gList.innerHTML += `
           <a href="#grade/${g.sub.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
             <div>
               <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider">${courseLookup[g.session.course_id] || 'Unknown Course'}</p>
               <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${g.session.title}</h3>
-              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${g.sub.score ?? 'N/A'}%</span></p>
+              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${g.sub.total_score ?? 'N/A'}%</span></p>
             </div>
             <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
           </a>

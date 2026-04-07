@@ -283,8 +283,14 @@ function renderRegister() {
     const regNumber = document.getElementById('reg-number').value || null;
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password
+      email: email,
+      password: password,
+      options: {
+        data: {
+          full_name: fullName,
+          registration_number: regNumber
+        }
+      }
     });
 
     if (authError) {

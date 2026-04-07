@@ -244,8 +244,21 @@ async function renderGradeReview(subId) {
 
   // Parse questions from grading_data JSON structure
   let items = [];
-  if (subData.grading_data && subData.grading_data.questions && Array.isArray(subData.grading_data.questions)) {
-      items = subData.grading_data.questions;
+  if (subData.grading_data) {
+      // 1. Check if Supabase returned a string, and parse it to a real object if so!
+      let parsedData = subData.grading_data;
+      if (typeof subData.grading_data === 'string') {
+          try {
+              parsedData = JSON.parse(subData.grading_data);
+          } catch (e) {
+              console.error("Failed to parse grading_data JSON string");
+          }
+      }
+
+      // 2. Now check for the questions array safely
+      if (parsedData.questions && Array.isArray(parsedData.questions)) {
+          items = parsedData.questions;
+      }
   }
 
   // Filter out dropped questions per instructions

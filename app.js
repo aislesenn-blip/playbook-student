@@ -983,7 +983,7 @@ async function renderAssignment(id) {
             if (data.matches && data.matches.length > 0) {
               const firstMatch = data.matches[0];
               const repl = firstMatch.replacements.length > 0 ? ` (e.g. "${firstMatch.replacements[0].value}")` : '';
-              suggestion.textContent = `Playbook AI: ${firstMatch.message}${repl}`;
+              suggestion.innerHTML = `<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 mr-1">Playbook AI:</span> ${firstMatch.message}${repl}`;
               banner.classList.remove('hidden');
             }
           }

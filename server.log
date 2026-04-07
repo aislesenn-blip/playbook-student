@@ -27,3 +27,8 @@
 127.0.0.1 - - [07/Apr/2026 19:13:13] "GET /app.js HTTP/1.1" 200 -
 127.0.0.1 - - [07/Apr/2026 19:13:13] "GET /env.js HTTP/1.1" 200 -
 127.0.0.1 - - [07/Apr/2026 19:13:13] "GET /images/playbook-logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [07/Apr/2026 19:52:12] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Apr/2026 19:52:12] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [07/Apr/2026 19:52:12] "GET /env.js HTTP/1.1" 200 -
+127.0.0.1 - - [07/Apr/2026 19:52:12] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [07/Apr/2026 19:52:12] "GET /images/playbook-logo.png HTTP/1.1" 200 -

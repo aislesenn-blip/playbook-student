@@ -25,7 +25,70 @@ async function init() {
     await supabase.auth.signOut();
   });
 
+  setupSmartTooltip();
+
   render();
+}
+
+function setupSmartTooltip() {
+  const tooltip = document.getElementById('smart-tooltip');
+
+  document.addEventListener('mouseup', async (e) => {
+    // Only trigger inside the app container to avoid firing on inputs etc.
+    if (!document.getElementById('app-container').contains(e.target)) return;
+
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+
+    if (text.length > 2 && text.length < 30) { // arbitrary limit for a concept
+      try {
+        const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(text)}`);
+        if (!response.ok) return tooltip.classList.add('hidden');
+
+        const data = await response.json();
+        if (data.type === 'standard') {
+          const rect = selection.getRangeAt(0).getBoundingClientRect();
+
+          let imgHtml = '';
+          if (data.thumbnail) {
+            imgHtml = `<img src="${data.thumbnail.source}" class="w-16 h-16 object-cover rounded-lg float-right ml-3 mb-1 shadow-sm">`;
+          }
+
+          tooltip.innerHTML = `
+            <div class="text-xs font-bold text-purple-600 uppercase mb-1 tracking-wider flex items-center gap-1"><i data-lucide="book-open" class="w-3 h-3"></i> Smart Concept</div>
+            ${imgHtml}
+            <h4 class="font-bold text-slate-900 mb-1">${data.title}</h4>
+            <p class="text-xs text-slate-600 leading-relaxed">${data.extract}</p>
+          `;
+
+          lucide.createIcons({root: tooltip});
+
+          tooltip.style.left = `${rect.left + window.scrollX}px`;
+          tooltip.style.top = `${rect.bottom + window.scrollY + 10}px`;
+          tooltip.classList.remove('hidden');
+
+          // Slight delay for transition
+          setTimeout(() => {
+            tooltip.classList.remove('opacity-0', 'translate-y-2');
+            tooltip.classList.add('opacity-100', 'translate-y-0');
+          }, 10);
+        }
+      } catch (err) {
+        // Silently fail if wikipedia block
+      }
+    } else {
+      tooltip.classList.add('opacity-0', 'translate-y-2');
+      setTimeout(() => tooltip.classList.add('hidden'), 300);
+    }
+  });
+
+  // Hide on mousedown
+  document.addEventListener('mousedown', (e) => {
+    if (!tooltip.contains(e.target)) {
+      tooltip.classList.add('opacity-0', 'translate-y-2');
+      setTimeout(() => tooltip.classList.add('hidden'), 300);
+    }
+  });
 }
 
 async function render() {
@@ -337,23 +400,69 @@ async function renderCourse(courseId) {
 
   if (materials && materials.length > 0) {
     materialsSection.classList.remove('hidden');
-    materials.forEach(m => {
-      materialsList.innerHTML += `
-        <a href="#" id="material-link-${m.id}" class="card hover:border-slate-300 transition-colors block cursor-pointer">
-          <div class="flex items-start gap-4">
-            <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
-              <i data-lucide="download" class="text-blue-500 w-5 h-5"></i>
+
+    // Process Materials and check for Google Books
+    for (const m of materials) {
+      let icon = '<i data-lucide="download" class="text-blue-500 w-5 h-5"></i>';
+      let isBook = false;
+      let bookCover = null;
+      let bookUrl = null;
+
+      // If the material specifically mentions "Book:" or similar, we intercept it
+      if (m.title.toLowerCase().includes('book:')) {
+        isBook = true;
+        const searchQuery = m.title.replace(/book:/i, '').trim();
+        try {
+          const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(searchQuery)}&maxResults=1`);
+          const bookData = await res.json();
+          if (bookData.items && bookData.items.length > 0) {
+            const vol = bookData.items[0].volumeInfo;
+            if (vol.imageLinks?.thumbnail) {
+              bookCover = vol.imageLinks.thumbnail.replace('http:', 'https:');
+            }
+            if (vol.infoLink) {
+              bookUrl = vol.infoLink;
+            }
+          }
+        } catch (e) {
+          // Fallback if API fails
+        }
+      }
+
+      if (isBook && bookCover) {
+        materialsList.innerHTML += `
+          <a href="${bookUrl || '#'}" target="${bookUrl ? '_blank' : '_self'}" id="material-link-${m.id}" class="card hover:border-slate-300 transition-all block cursor-pointer group">
+            <div class="flex items-start gap-4">
+              <img src="${bookCover}" alt="Cover" class="w-12 h-16 object-cover rounded shadow-sm group-hover:scale-105 transition-transform">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm leading-tight">${m.title.replace(/book:/i, '').trim()}</h3>
+                <p class="text-xs text-slate-500 mt-1 flex items-center gap-1"><i data-lucide="external-link" class="w-3 h-3"></i> View Book</p>
+                ${m.description ? `<p class="text-xs text-slate-400 mt-2 line-clamp-2">${m.description}</p>` : ''}
+              </div>
             </div>
-            <div>
-              <h3 class="font-bold text-slate-900">${m.title}</h3>
-              ${m.description ? `<p class="text-sm text-slate-500 mt-1">${m.description}</p>` : ''}
+          </a>
+        `;
+      } else {
+        materialsList.innerHTML += `
+          <a href="#" id="material-link-${m.id}" class="card hover:border-slate-300 transition-colors block cursor-pointer">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center shrink-0">
+                ${icon}
+              </div>
+              <div>
+                <h3 class="font-bold text-slate-900">${m.title}</h3>
+                ${m.description ? `<p class="text-sm text-slate-500 mt-1">${m.description}</p>` : ''}
+              </div>
             </div>
-          </div>
-        </a>
-      `;
-    });
+          </a>
+        `;
+      }
+    }
 
     materials.forEach(m => {
+      if (m.title.toLowerCase().includes('book:') && document.getElementById(`material-link-${m.id}`).href !== window.location.href + '#') {
+        return; // It's an external book link, skip signed URL generation
+      }
       document.getElementById(`material-link-${m.id}`).addEventListener('click', async (e) => {
         e.preventDefault();
 
@@ -581,6 +690,22 @@ async function renderDashboard() {
 
     if (pending.length > 0) {
       const pList = document.getElementById('pending-list');
+
+      // Enable Calendar Sync Button
+      const btnSync = document.getElementById('btn-sync-calendar');
+      if (window.ics) {
+        btnSync.classList.remove('hidden');
+        btnSync.addEventListener('click', () => {
+          const cal = window.ics();
+          pending.forEach(s => {
+            const date = s.due_date ? new Date(s.due_date) : new Date(Date.now() + 86400000); // default tomorrow
+            const courseName = courseLookup[s.course_id] || 'Playbook Course';
+            cal.addEvent(`[Due] ${s.title}`, `${courseName} Assignment`, '', date, date);
+          });
+          cal.download('Playbook_Assignments');
+        });
+      }
+
       pending.forEach(s => {
         pList.innerHTML += `
           <a href="#assignment/${s.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
@@ -750,6 +875,47 @@ async function renderAssignment(id) {
       document.getElementById('pdf-name').textContent = selectedFile.name;
     }
   };
+
+  // LanguageTool API Grammar Checking
+  const ta = document.getElementById('submit-text');
+  const banner = document.getElementById('grammar-check-banner');
+  const suggestion = document.getElementById('grammar-suggestion');
+  let grammarTimeout;
+
+  document.getElementById('btn-dismiss-grammar').onclick = () => {
+    banner.classList.add('hidden');
+  };
+
+  ta.addEventListener('input', () => {
+    clearTimeout(grammarTimeout);
+    banner.classList.add('hidden');
+    const text = ta.value.trim();
+    if (text.length > 10) {
+      grammarTimeout = setTimeout(async () => {
+        try {
+          const body = new URLSearchParams({
+            text: text,
+            language: 'en-US'
+          });
+          const response = await fetch('https://api.languagetoolplus.com/v2/check', {
+            method: 'POST',
+            body: body
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.matches && data.matches.length > 0) {
+              const firstMatch = data.matches[0];
+              const repl = firstMatch.replacements.length > 0 ? ` (e.g. "${firstMatch.replacements[0].value}")` : '';
+              suggestion.textContent = `Tip: ${firstMatch.message}${repl}`;
+              banner.classList.remove('hidden');
+            }
+          }
+        } catch (e) {
+          // Silent fail on network error for grammar
+        }
+      }, 1500); // 1.5s debounce
+    }
+  });
 
   document.getElementById('form-submit-work').onsubmit = async (e) => {
     e.preventDefault();

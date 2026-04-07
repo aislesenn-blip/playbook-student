@@ -34,13 +34,10 @@ function setupSmartTooltip() {
   const tooltip = document.getElementById('smart-tooltip');
 
   document.addEventListener('mouseup', async (e) => {
-    // Only trigger inside the app container to avoid firing on inputs etc.
-    if (!document.getElementById('app-container').contains(e.target)) return;
-
     const selection = window.getSelection();
     const text = selection.toString().trim();
 
-    if (text.length > 2 && text.length < 30) { // arbitrary limit for a concept
+    if (text.length > 2 && text.length < 40) { // arbitrary limit for a concept
       try {
         const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(text)}`);
         if (!response.ok) return tooltip.classList.add('hidden');
@@ -55,7 +52,9 @@ function setupSmartTooltip() {
           }
 
           tooltip.innerHTML = `
-            <div class="text-xs font-bold text-purple-600 uppercase mb-1 tracking-wider flex items-center gap-1"><i data-lucide="book-open" class="w-3 h-3"></i> Smart Concept</div>
+            <div class="text-xs font-bold text-slate-900 uppercase mb-1 tracking-wider flex items-center gap-1">
+              <img src="images/playbook-logo.png" class="h-4 w-auto mix-blend-multiply" alt="AI"> Playbook AI
+            </div>
             ${imgHtml}
             <h4 class="font-bold text-slate-900 mb-1">${data.title}</h4>
             <p class="text-xs text-slate-600 leading-relaxed">${data.extract}</p>
@@ -164,7 +163,7 @@ async function renderGradeReview(subId) {
   const { data: subData, error: fetchError } = await supabase
     .from('exam_submissions')
     .select(`
-      id, status, total_score, grading_data, session_id
+      id, status, total_score, max_score, grading_data, session_id
     `)
     .eq('id', subId)
     .single();
@@ -190,10 +189,15 @@ async function renderGradeReview(subId) {
 
   document.getElementById('grade-course-name').textContent = courseName;
   document.getElementById('grade-title').textContent = sessionData.title;
-  document.getElementById('grade-score').textContent = `${subData.total_score ?? 'N/A'}%`;
+
+  let percentage = 'N/A';
+  if (subData.total_score !== null && subData.max_score) {
+    percentage = Math.round((subData.total_score / subData.max_score) * 100);
+  }
+  document.getElementById('grade-score').textContent = `${percentage}%`;
 
   // Trigger Confetti if score > 80
-  if (subData.total_score > 80 && window.confetti) {
+  if (percentage !== 'N/A' && percentage > 80 && window.confetti) {
     setTimeout(() => {
       window.confetti({
         particleCount: 100,
@@ -208,13 +212,20 @@ async function renderGradeReview(subId) {
   // Make the feedback list a horizontal scrollable snap container (Flashcards)
   feedbackList.className = "flex gap-6 overflow-x-auto pb-8 hide-scrollbar snap-x";
 
-  const items = subData.grading_data && Array.isArray(subData.grading_data) ? subData.grading_data : [];
+  // Parse questions from grading_data JSON structure
+  let items = [];
+  if (subData.grading_data && subData.grading_data.questions && Array.isArray(subData.grading_data.questions)) {
+      items = subData.grading_data.questions;
+  }
+
+  // Filter out dropped questions per instructions
+  items = items.filter(q => q.constructive_feedback && q.constructive_feedback !== "(Dropped)");
 
   if (items.length === 0) {
-    feedbackList.innerHTML = `<div class="card text-center text-slate-500">No detailed question feedback available yet.</div>`;
+    feedbackList.innerHTML = `<div class="card w-full text-center text-slate-500">No detailed question feedback available yet.</div>`;
   } else {
     items.forEach((item, index) => {
-      const qId = item.id || index.toString();
+      const qId = item.questionId || index.toString();
       const div = document.createElement('div');
       div.className = 'min-w-[300px] max-w-[300px] snap-center bg-white border border-slate-100 rounded-[24px] shadow-sm flex flex-col justify-between overflow-hidden relative group transition-transform hover:-translate-y-1';
 
@@ -222,14 +233,13 @@ async function renderGradeReview(subId) {
         <div class="p-6">
           <div class="flex justify-between items-start gap-4 mb-6">
             <div class="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
-              Q${index + 1}
+              Q${item.questionId || index + 1}
             </div>
             <div class="px-3 py-1 rounded-full text-sm font-bold flex-shrink-0 bg-slate-100 text-slate-900">
-              ${item.score ?? '-'} / ${item.maxScore ?? '-'}
+              Score: ${item.marks_awarded_by_ai ?? '-'}
             </div>
           </div>
-          <h3 class="text-lg font-bold text-slate-900 mb-4 leading-tight">${item.question || 'Untitled Question'}</h3>
-          <p class="text-slate-500 text-sm leading-relaxed">${item.aiNote || 'No feedback provided.'}</p>
+          <p class="text-slate-700 text-sm leading-relaxed">${item.constructive_feedback || 'No feedback provided.'}</p>
         </div>
         <div class="p-4 border-t border-slate-50 bg-slate-50/50" id="appeal-container-${qId}">
           <button id="btn-open-appeal-${qId}" class="w-full flex items-center justify-center gap-2 text-sm font-bold text-slate-500 hover:text-black transition-colors py-2 rounded-xl hover:bg-slate-200">
@@ -491,12 +501,12 @@ async function renderCourse(courseId) {
 
   let submissions = [];
   if (window.registrationNumber) {
-    const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('registration_number', window.registrationNumber);
+    const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score, max_score').eq('registration_number', window.registrationNumber);
     submissions = data || [];
   } else if (currentUser?.email) {
     // Fallback
     const studentName = currentUser.email.split('@')[0];
-    const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('student_name', studentName);
+    const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score, max_score').eq('student_name', studentName);
     submissions = data || [];
   }
 
@@ -678,10 +688,10 @@ async function renderDashboard() {
     // Fetch submissions based on registration_number (with fallback to student_name if reg number is null)
     let submissions = [];
     if (window.registrationNumber) {
-      const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('registration_number', window.registrationNumber);
+      const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score, max_score').eq('registration_number', window.registrationNumber);
       submissions = data || [];
     } else {
-      const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score').eq('student_name', window.studentName);
+      const { data } = await supabase.from('exam_submissions').select('id, session_id, status, total_score, max_score').eq('student_name', window.studentName);
       submissions = data || [];
     }
 
@@ -694,10 +704,14 @@ async function renderDashboard() {
 
       // Enable Calendar Sync Button
       const btnSync = document.getElementById('btn-sync-calendar');
-      if (window.ics) {
+      if (typeof ics !== 'undefined') {
         btnSync.classList.remove('hidden');
-        btnSync.addEventListener('click', () => {
-          const cal = window.ics();
+        // Prevent duplicate event listeners
+        const newBtn = btnSync.cloneNode(true);
+        btnSync.parentNode.replaceChild(newBtn, btnSync);
+
+        newBtn.addEventListener('click', () => {
+          const cal = ics();
           pending.forEach(s => {
             const date = s.due_date ? new Date(s.due_date) : new Date(Date.now() + 86400000); // default tomorrow
             const courseName = courseLookup[s.course_id] || 'Playbook Course';
@@ -749,15 +763,20 @@ async function renderDashboard() {
       const dataPoints = [];
 
       graded.forEach(g => {
+        let pct = 0;
+        if (g.sub.total_score !== null && g.sub.max_score) {
+          pct = Math.round((g.sub.total_score / g.sub.max_score) * 100);
+        }
+
         labels.push(g.session.title || 'Assignment');
-        dataPoints.push(g.sub.total_score || 0);
+        dataPoints.push(pct);
 
         gList.innerHTML += `
           <a href="#grade/${g.sub.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
             <div>
               <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider">${courseLookup[g.session.course_id] || 'Unknown Course'}</p>
               <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${g.session.title}</h3>
-              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${g.sub.total_score ?? 'N/A'}%</span></p>
+              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${pct}%</span></p>
             </div>
             <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
           </a>
@@ -907,7 +926,7 @@ async function renderAssignment(id) {
             if (data.matches && data.matches.length > 0) {
               const firstMatch = data.matches[0];
               const repl = firstMatch.replacements.length > 0 ? ` (e.g. "${firstMatch.replacements[0].value}")` : '';
-              suggestion.textContent = `Tip: ${firstMatch.message}${repl}`;
+              suggestion.textContent = `Playbook AI: ${firstMatch.message}${repl}`;
               banner.classList.remove('hidden');
             }
           }

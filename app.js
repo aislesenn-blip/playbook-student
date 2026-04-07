@@ -33,11 +33,13 @@ async function init() {
 function setupSmartTooltip() {
   const tooltip = document.getElementById('smart-tooltip');
 
-  document.addEventListener('mouseup', async (e) => {
+  let mobileTooltipTimer;
+
+  const handleSelection = async (e) => {
     const selection = window.getSelection();
     const text = selection.toString().trim();
 
-    if (text.length > 2 && text.length < 40) { // arbitrary limit for a concept
+    if (text.length > 2 && text.length < 40) {
       try {
         const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(text)}`);
         if (!response.ok) return tooltip.classList.add('hidden');
@@ -52,8 +54,8 @@ function setupSmartTooltip() {
           }
 
           tooltip.innerHTML = `
-            <div class="text-xs font-bold text-slate-900 uppercase mb-1 tracking-wider flex items-center gap-1">
-              <img src="images/playbook-logo.png" class="h-4 w-auto mix-blend-multiply" alt="AI"> Playbook AI
+            <div class="text-xs font-black uppercase mb-2 tracking-wider flex items-center gap-1.5 text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">
+              <i data-lucide="sparkles" class="w-4 h-4 text-purple-500"></i> Playbook AI
             </div>
             ${imgHtml}
             <h4 class="font-bold text-slate-900 mb-1">${data.title}</h4>
@@ -62,50 +64,78 @@ function setupSmartTooltip() {
 
           lucide.createIcons({root: tooltip});
 
-          tooltip.style.left = `${rect.left + window.scrollX}px`;
-          tooltip.style.top = `${rect.bottom + window.scrollY + 10}px`;
+          // Mobile vs Desktop positioning
+          if (window.innerWidth < 768) {
+            tooltip.style.left = '5%';
+            tooltip.style.width = '90%';
+            tooltip.style.top = 'auto';
+            tooltip.style.bottom = '120px'; // Above mobile nav
+          } else {
+            tooltip.style.left = `${rect.left + window.scrollX}px`;
+            tooltip.style.top = `${rect.bottom + window.scrollY + 10}px`;
+            tooltip.style.width = 'auto';
+            tooltip.style.bottom = 'auto';
+          }
+
           tooltip.classList.remove('hidden');
 
-          // Slight delay for transition
           setTimeout(() => {
             tooltip.classList.remove('opacity-0', 'translate-y-2');
             tooltip.classList.add('opacity-100', 'translate-y-0');
           }, 10);
         }
-      } catch (err) {
-        // Silently fail if wikipedia block
-      }
+      } catch (err) {}
     } else {
-      tooltip.classList.add('opacity-0', 'translate-y-2');
-      setTimeout(() => tooltip.classList.add('hidden'), 300);
+      hideTooltip();
     }
+  };
+
+  const hideTooltip = () => {
+    tooltip.classList.add('opacity-0', 'translate-y-2');
+    setTimeout(() => tooltip.classList.add('hidden'), 300);
+  };
+
+  // Support desktop
+  document.addEventListener('mouseup', handleSelection);
+
+  // Support mobile touch selection
+  document.addEventListener('selectionchange', () => {
+    clearTimeout(mobileTooltipTimer);
+    mobileTooltipTimer = setTimeout(handleSelection, 600);
   });
 
-  // Hide on mousedown
   document.addEventListener('mousedown', (e) => {
-    if (!tooltip.contains(e.target)) {
-      tooltip.classList.add('opacity-0', 'translate-y-2');
-      setTimeout(() => tooltip.classList.add('hidden'), 300);
-    }
+    if (!tooltip.contains(e.target)) hideTooltip();
   });
+
+  document.addEventListener('touchstart', (e) => {
+    if (!tooltip.contains(e.target) && window.getSelection().toString().trim().length === 0) {
+      hideTooltip();
+    }
+  }, {passive: true});
 }
 
 async function render() {
   app.innerHTML = '<div class="text-center text-slate-500 py-20">Loading...</div>';
   modals.innerHTML = '';
 
+  const mobileNav = document.getElementById('mobile-nav');
+
   if (!currentUser && window.location.hash !== '#register') {
     header.classList.add('hidden');
+    if (mobileNav) mobileNav.classList.add('hidden');
     renderLogin();
     return;
   }
   if (!currentUser && window.location.hash === '#register') {
     header.classList.add('hidden');
+    if (mobileNav) mobileNav.classList.add('hidden');
     renderRegister();
     return;
   }
 
   header.classList.remove('hidden');
+  if (mobileNav) mobileNav.classList.remove('hidden');
 
   if (!currentStudentId) {
     // Check if the student profile exists
@@ -618,7 +648,7 @@ async function renderDashboard() {
   });
 
   // Setup Join Modal
-  document.getElementById('btn-open-join').addEventListener('click', () => {
+  const openJoinModal = () => {
     const modalTpl = document.getElementById('tpl-join-modal').content.cloneNode(true);
     modals.innerHTML = '';
     modals.appendChild(modalTpl);
@@ -643,7 +673,12 @@ async function renderDashboard() {
         renderDashboard(); // Refresh
       }
     });
-  });
+  };
+
+  const btnJoin = document.getElementById('btn-open-join');
+  const mobBtnJoin = document.getElementById('mob-btn-open-join');
+  if (btnJoin) btnJoin.addEventListener('click', openJoinModal);
+  if (mobBtnJoin) mobBtnJoin.addEventListener('click', openJoinModal);
 
   // Fetch Data
   // Workaround: We fetch enrollments first, then separately fetch courses to avoid 400 Bad Request if FKs are missing/blocked on the backend.
@@ -652,6 +687,28 @@ async function renderDashboard() {
   if (enrollError) {
       console.error("Enrollment fetch error:", enrollError);
   }
+
+  // Setup Mobile Nav Navigation Mapping
+  const mapMobileNav = () => {
+    const mobHome = document.getElementById('mob-tab-overview');
+    const mobTasks = document.getElementById('mob-tab-tasks');
+
+    if (mobHome) {
+      mobHome.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    if (mobTasks) {
+      mobTasks.addEventListener('click', () => {
+        const tasksSection = document.getElementById('tasks-container');
+        if (tasksSection) {
+          tasksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    }
+  };
+  mapMobileNav();
 
   const classList = document.getElementById('classes-list');
   if (!rawEnrollments || rawEnrollments.length === 0) {

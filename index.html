@@ -126,9 +126,14 @@
       </section>
 
       <section id="course-pending-section" class="hidden">
-        <h3 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <i data-lucide="clock" class="text-amber-500 w-5 h-5"></i> Pending Assignments
-        </h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="clock" class="text-amber-500 w-5 h-5"></i> Pending Assignments
+          </h3>
+          <button id="btn-sync-calendar-course" class="hidden flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 transition-all">
+            <i data-lucide="calendar" class="w-4 h-4"></i> Sync to Calendar
+          </button>
+        </div>
         <div id="course-pending-list" class="space-y-4"></div>
       </section>
 

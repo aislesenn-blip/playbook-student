@@ -582,6 +582,8 @@ async function renderCourse(courseId) {
   let hasPending = false;
   let hasGraded = false;
 
+  const pendingSessionsForCourse = [];
+
   (sessions || []).forEach(s => {
     const sub = submissions.find(sub => sub.session_id === s.id);
     const sessionTitle = s.title || s.name || 'Untitled Assignment';
@@ -589,6 +591,7 @@ async function renderCourse(courseId) {
     if (!sub) {
       // Pending assignment
       hasPending = true;
+      pendingSessionsForCourse.push(s);
       pendingSection.classList.remove('hidden');
 
       let detailsHtml = '<p class="text-sm text-slate-500 mt-1">Not started</p>';
@@ -641,6 +644,24 @@ async function renderCourse(courseId) {
       `;
     }
   });
+
+  if (hasPending && pendingSessionsForCourse.length > 0) {
+    const btnSyncCourse = document.getElementById('btn-sync-calendar-course');
+    if (typeof ics !== 'undefined' && btnSyncCourse) {
+      btnSyncCourse.classList.remove('hidden');
+      const newBtn = btnSyncCourse.cloneNode(true);
+      btnSyncCourse.parentNode.replaceChild(newBtn, btnSyncCourse);
+
+      newBtn.addEventListener('click', () => {
+        const cal = ics();
+        pendingSessionsForCourse.forEach(s => {
+          const date = s.due_date ? new Date(s.due_date) : new Date(Date.now() + 86400000);
+          cal.addEvent(`[Due] ${s.title || s.name || 'Assignment'}`, `${courseName} Task`, '', date, date);
+        });
+        cal.download(`Playbook_${courseName.replace(/\s+/g, '_')}_Assignments`);
+      });
+    }
+  }
 
   if (!hasPending && !hasGraded) {
     app.innerHTML += `

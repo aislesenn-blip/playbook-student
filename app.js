@@ -647,18 +647,35 @@ async function renderCourse(courseId) {
 
   if (hasPending && pendingSessionsForCourse.length > 0) {
     const btnSyncCourse = document.getElementById('btn-sync-calendar-course');
-    if (typeof ics !== 'undefined' && btnSyncCourse) {
+    if (btnSyncCourse) {
       btnSyncCourse.classList.remove('hidden');
       const newBtn = btnSyncCourse.cloneNode(true);
       btnSyncCourse.parentNode.replaceChild(newBtn, btnSyncCourse);
 
       newBtn.addEventListener('click', () => {
-        const cal = ics();
+        let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Playbook//Student Portal//EN\n";
+
         pendingSessionsForCourse.forEach(s => {
           const date = s.due_date ? new Date(s.due_date) : new Date(Date.now() + 86400000);
-          cal.addEvent(`[Due] ${s.title || s.name || 'Assignment'}`, `${courseName} Task`, '', date, date);
+          const dateStr = date.toISOString().replace(/-|:|\.\d+/g, '');
+
+          icsContent += "BEGIN:VEVENT\n";
+          icsContent += `DTSTART:${dateStr}\n`;
+          icsContent += `DTEND:${dateStr}\n`;
+          icsContent += `SUMMARY:[Due] ${s.title || s.name || 'Assignment'}\n`;
+          icsContent += `DESCRIPTION:${courseName} Task\n`;
+          icsContent += "END:VEVENT\n";
         });
-        cal.download(`Playbook_${courseName.replace(/\s+/g, '_')}_Assignments`);
+
+        icsContent += "END:VCALENDAR";
+
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = `Playbook_${courseName.replace(/\s+/g, '_')}_Assignments.ics`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       });
     }
   }
@@ -835,20 +852,37 @@ async function renderDashboard() {
 
       // Enable Calendar Sync Button
       const btnSync = document.getElementById('btn-sync-calendar');
-      if (typeof ics !== 'undefined') {
+      if (btnSync) {
         btnSync.classList.remove('hidden');
         // Prevent duplicate event listeners
         const newBtn = btnSync.cloneNode(true);
         btnSync.parentNode.replaceChild(newBtn, btnSync);
 
         newBtn.addEventListener('click', () => {
-          const cal = ics();
+          let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Playbook//Student Portal//EN\n";
+
           pending.forEach(s => {
             const date = s.due_date ? new Date(s.due_date) : new Date(Date.now() + 86400000); // default tomorrow
             const courseName = courseLookup[s.course_id] || 'Playbook Course';
-            cal.addEvent(`[Due] ${s.title}`, `${courseName} Assignment`, '', date, date);
+            const dateStr = date.toISOString().replace(/-|:|\.\d+/g, '');
+
+            icsContent += "BEGIN:VEVENT\n";
+            icsContent += `DTSTART:${dateStr}\n`;
+            icsContent += `DTEND:${dateStr}\n`;
+            icsContent += `SUMMARY:[Due] ${s.title || s.name || 'Assignment'}\n`;
+            icsContent += `DESCRIPTION:${courseName} Task\n`;
+            icsContent += "END:VEVENT\n";
           });
-          cal.download('Playbook_Assignments');
+
+          icsContent += "END:VCALENDAR";
+
+          const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+          const link = document.createElement('a');
+          link.href = window.URL.createObjectURL(blob);
+          link.download = "Playbook_Assignments.ics";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         });
       }
 

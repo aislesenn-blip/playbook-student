@@ -9,6 +9,16 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Quill.js for Rich Text Editor -->
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
+  <!-- KaTeX for Math Equations -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
   <script src="env.js"></script>
   <script type="module" src="app.js" defer></script>
 </head>
@@ -19,9 +29,14 @@
     <div class="flex items-center cursor-pointer" onclick="window.location.hash=''">
       <img src="images/playbook-logo.png" alt="Playbook" class="h-8 w-auto mix-blend-multiply" style="object-fit: contain;">
     </div>
-    <button id="btn-logout" class="p-2 text-slate-500 hover:text-black transition-colors rounded-full hover:bg-slate-100">
-      <i data-lucide="log-out" class="w-5 h-5"></i>
-    </button>
+    <div class="flex items-center gap-4">
+      <div id="header-avatar-container" class="w-8 h-8 bg-slate-200 rounded-full border border-slate-300 overflow-hidden flex items-center justify-center">
+        <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+      </div>
+      <button id="btn-logout" class="p-2 text-slate-500 hover:text-black transition-colors rounded-full hover:bg-slate-100">
+        <i data-lucide="log-out" class="w-5 h-5"></i>
+      </button>
+    </div>
   </header>
 
   <main id="app-container" class="max-w-3xl mx-auto px-4 py-8 pb-32 md:pb-8"></main>
@@ -46,7 +61,7 @@
       <span class="text-[10px] font-bold">Tasks</span>
     </button>
     <button id="mob-tab-profile" class="flex flex-col items-center gap-1 text-slate-400 hover:text-black transition-all active:scale-95">
-      <div class="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center border border-slate-300 overflow-hidden">
+      <div class="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center border border-slate-300 overflow-hidden" id="mob-avatar-container">
         <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
       </div>
       <span class="text-[10px] font-bold">Profile</span>
@@ -116,9 +131,14 @@
       <h2 id="course-title" class="text-3xl font-bold text-slate-900 mb-8">Course Name</h2>
 
       <section id="course-materials-section" class="hidden">
-        <h3 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <i data-lucide="file-text" class="text-blue-500 w-5 h-5"></i> Course Materials
-        </h3>
+        <div class="flex justify-between items-end mb-4">
+          <h3 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="file-text" class="text-blue-500 w-5 h-5"></i> Course Materials
+          </h3>
+          <button id="btn-yt-tutorials" class="flex items-center gap-2 text-xs font-bold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition-all">
+            <i data-lucide="youtube" class="w-4 h-4"></i> Tutorials
+          </button>
+        </div>
         <div id="course-materials-list" class="grid gap-4 sm:grid-cols-2"></div>
       </section>
 
@@ -146,6 +166,13 @@
   <template id="tpl-dashboard">
     <div class="fade-in">
 
+      <!-- Daily Motivation Widget -->
+      <div class="mb-8 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-3xl p-6 shadow-lg shadow-indigo-200 text-white relative overflow-hidden group">
+        <div class="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-110 transition-transform duration-700"></div>
+        <h2 class="text-sm font-bold uppercase tracking-widest text-indigo-100 mb-2 flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4"></i> Daily Insight</h2>
+        <p id="daily-motivation" class="text-lg font-medium leading-tight">"Loading inspiration..."</p>
+      </div>
+
       <!-- Top Action Bar -->
       <div class="flex justify-between items-center mb-6 px-1">
         <h2 class="text-3xl font-bold tracking-tight text-slate-900">My Classes</h2>
@@ -169,6 +196,26 @@
         <div class="w-full h-40">
           <canvas id="grade-chart"></canvas>
         </div>
+      </section>
+
+      <!-- Native Interactive Calendar UI -->
+      <section id="mini-calendar-section" class="card mb-10 hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="calendar-days" class="text-slate-900 w-5 h-5"></i> Upcoming Deadlines
+          </h2>
+          <p id="cal-month-year" class="text-sm font-bold text-slate-500 uppercase tracking-widest"></p>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center mb-2">
+          <span class="text-xs font-bold text-slate-400">Su</span>
+          <span class="text-xs font-bold text-slate-400">Mo</span>
+          <span class="text-xs font-bold text-slate-400">Tu</span>
+          <span class="text-xs font-bold text-slate-400">We</span>
+          <span class="text-xs font-bold text-slate-400">Th</span>
+          <span class="text-xs font-bold text-slate-400">Fr</span>
+          <span class="text-xs font-bold text-slate-400">Sa</span>
+        </div>
+        <div id="mini-calendar-grid" class="grid grid-cols-7 gap-1"></div>
       </section>
 
       <!-- Task Filters (Airbnb style pills) -->
@@ -241,9 +288,12 @@
         <form id="form-submit-work" class="space-y-6">
           <div id="submit-error" class="bg-red-50 text-red-500 p-4 rounded-[16px] text-sm hidden"></div>
 
-          <div id="container-text" class="card p-0 overflow-hidden relative">
-            <textarea id="submit-text" required class="w-full h-64 p-6 outline-none resize-none text-base text-slate-900" placeholder="Type your answer here..."></textarea>
-            <div id="grammar-check-banner" class="hidden absolute bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-3 flex justify-between items-center shadow-inner">
+          <div id="container-text" class="card p-0 overflow-hidden relative pb-12">
+            <!-- Quill Editor Container -->
+            <div id="submit-editor" class="h-64 outline-none border-none text-base text-slate-900"></div>
+            <!-- Hidden textarea to store the value for validation. Removed required attribute to fix submission bug. -->
+            <textarea id="submit-text" class="hidden"></textarea>
+            <div id="grammar-check-banner" class="hidden absolute bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-3 flex justify-between items-center shadow-inner z-10">
               <div class="flex items-center gap-2 truncate mr-4">
                 <div class="text-xs font-black tracking-wider flex items-center gap-1.5 text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 shrink-0">
                   <i data-lucide="sparkles" class="w-4 h-4 text-purple-500"></i>

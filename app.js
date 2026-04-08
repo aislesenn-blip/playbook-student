@@ -45,6 +45,7 @@ function setupSmartTooltip() {
         let title = text;
         let extract = '';
         let thumbnail = null;
+        let audioUrl = null;
 
         const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(text)}`);
         if (wikiRes.ok) {
@@ -56,14 +57,19 @@ function setupSmartTooltip() {
           }
         }
 
-        // If Wikipedia missed, try the Dictionary API aggressively
-        if (!extract) {
-          const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(text)}`);
-          if (dictRes.ok) {
-            const dictData = await dictRes.json();
-            if (dictData.length > 0 && dictData[0].meanings.length > 0) {
+        // Dictionary API for fallback text AND audio pronunciation
+        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(text)}`);
+        if (dictRes.ok) {
+          const dictData = await dictRes.json();
+          if (dictData.length > 0) {
+            if (!extract && dictData[0].meanings.length > 0) {
               title = dictData[0].word;
               extract = dictData[0].meanings[0].definitions[0].definition;
+            }
+            // Look for valid audio file
+            const phonetic = dictData[0].phonetics.find(p => p.audio && p.audio.endsWith('.mp3'));
+            if (phonetic) {
+              audioUrl = phonetic.audio;
             }
           }
         }
@@ -76,12 +82,24 @@ function setupSmartTooltip() {
             imgHtml = `<img src="${thumbnail}" class="w-16 h-16 object-cover rounded-lg float-right ml-3 mb-1 shadow-sm">`;
           }
 
+          let audioHtml = '';
+          if (audioUrl) {
+            audioHtml = `
+              <button id="btn-play-audio" class="ml-2 w-6 h-6 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full flex items-center justify-center transition-colors">
+                <i data-lucide="volume-2" class="w-3 h-3"></i>
+              </button>
+            `;
+          }
+
           tooltip.innerHTML = `
             <div class="text-xs font-black uppercase mb-2 tracking-wider flex items-center gap-1.5 text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">
               <i data-lucide="sparkles" class="w-4 h-4 text-purple-500"></i> Playbook AI
             </div>
             ${imgHtml}
-            <h4 class="font-bold text-slate-900 mb-1 capitalize">${title}</h4>
+            <div class="flex items-center mb-1">
+              <h4 class="font-bold text-slate-900 capitalize">${title}</h4>
+              ${audioHtml}
+            </div>
             <p class="text-xs text-slate-600 leading-relaxed">${extract}</p>
           `;
 
@@ -101,6 +119,13 @@ function setupSmartTooltip() {
           }
 
           tooltip.classList.remove('hidden');
+
+          if (audioUrl) {
+            document.getElementById('btn-play-audio').addEventListener('mousedown', (ev) => {
+              ev.preventDefault(); // prevent losing selection on click
+              new Audio(audioUrl).play();
+            });
+          }
 
           setTimeout(() => {
             tooltip.classList.remove('opacity-0', 'translate-y-2');
@@ -122,9 +147,9 @@ function setupSmartTooltip() {
   document.addEventListener('mouseup', handleSelection);
 
   // Support mobile touch selection
-  document.addEventListener('selectionchange', () => {
+  document.addEventListener('touchend', () => {
     clearTimeout(mobileTooltipTimer);
-    mobileTooltipTimer = setTimeout(handleSelection, 600);
+    mobileTooltipTimer = setTimeout(handleSelection, 300);
   });
 
   document.addEventListener('mousedown', (e) => {
@@ -132,9 +157,7 @@ function setupSmartTooltip() {
   });
 
   document.addEventListener('touchstart', (e) => {
-    if (!tooltip.contains(e.target) && window.getSelection().toString().trim().length === 0) {
-      hideTooltip();
-    }
+    if (!tooltip.contains(e.target)) hideTooltip();
   }, {passive: true});
 }
 
@@ -197,6 +220,15 @@ async function render() {
       window.studentName = data.full_name;
       window.registrationNumber = data.registration_number;
     }
+  }
+
+  // Update Avatars via DiceBear
+  if (window.studentName) {
+    const avatarUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(window.studentName)}&backgroundColor=e2e8f0`;
+    const deskAvatar = document.getElementById('header-avatar-container');
+    const mobAvatar = document.getElementById('mob-avatar-container');
+    if (deskAvatar) deskAvatar.innerHTML = `<img src="${avatarUrl}" class="w-full h-full object-cover">`;
+    if (mobAvatar) mobAvatar.innerHTML = `<img src="${avatarUrl}" class="w-full h-full object-cover">`;
   }
 
   const hash = window.location.hash;
@@ -310,6 +342,18 @@ async function renderGradeReview(subId) {
       `;
       feedbackList.appendChild(div);
     });
+
+    // Auto-render KaTeX math formulas in feedback
+    if (window.renderMathInElement) {
+      window.renderMathInElement(feedbackList, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false},
+          {left: '\\[', right: '\\]', display: true}
+        ]
+      });
+    }
   }
 
   // Handle Exam-Level Appeal
@@ -574,6 +618,15 @@ async function renderCourse(courseId) {
     submissions = data || [];
   }
 
+  // Setup YouTube Tutorial Search
+  const btnYt = document.getElementById('btn-yt-tutorials');
+  if (btnYt) {
+    btnYt.addEventListener('click', () => {
+      const query = encodeURIComponent(`${courseName} tutorial lesson`);
+      window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
+    });
+  }
+
   const pendingList = document.getElementById('course-pending-list');
   const gradedList = document.getElementById('course-graded-list');
   const pendingSection = document.getElementById('course-pending-section');
@@ -719,6 +772,22 @@ async function renderDashboard() {
     listTodo.classList.add('hidden');
   });
 
+  // Fetch Daily Motivation
+  const fetchMotivation = async () => {
+    const motEl = document.getElementById('daily-motivation');
+    if (!motEl) return;
+    try {
+      const res = await fetch('https://api.adviceslip.com/advice');
+      const data = await res.json();
+      if (data && data.slip) {
+        motEl.textContent = `"${data.slip.advice}"`;
+      }
+    } catch(e) {
+      motEl.textContent = `"Keep pushing forward!"`;
+    }
+  };
+  fetchMotivation();
+
   // Setup Join Modal
   const openJoinModal = () => {
     const modalTpl = document.getElementById('tpl-join-modal').content.cloneNode(true);
@@ -795,7 +864,7 @@ async function renderDashboard() {
         coursesData.forEach(c => courseLookup[c.id] = c.name);
     }
 
-    // Fetch and render classes with Unsplash imagery
+    // Fetch and render classes with Unsplash API
     for (const e of rawEnrollments) {
       const courseName = courseLookup[e.course_id] || 'Unknown Course';
       let imageUrl = 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=400&q=80'; // fallback image
@@ -849,6 +918,69 @@ async function renderDashboard() {
 
     if (pending.length > 0) {
       const pList = document.getElementById('pending-list');
+
+      // Native Interactive Mini-Calendar UI
+      const calSection = document.getElementById('mini-calendar-section');
+      const calGrid = document.getElementById('mini-calendar-grid');
+      const calMonthYear = document.getElementById('cal-month-year');
+
+      if (calSection && calGrid) {
+        calSection.classList.remove('hidden');
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+
+        calMonthYear.textContent = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Map pending assignment due dates (format: YYYY-MM-DD)
+        const dueDates = new Set();
+        pending.forEach(s => {
+          if (s.due_date) {
+            dueDates.add(new Date(s.due_date).toISOString().split('T')[0]);
+          } else {
+            // Default tomorrow if no due date explicitly set
+            dueDates.add(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+          }
+        });
+
+        calGrid.innerHTML = '';
+
+        // Empty cells for alignment
+        for (let i = 0; i < firstDayIndex; i++) {
+          calGrid.innerHTML += `<div class="w-8 h-8 mx-auto"></div>`;
+        }
+
+        // Days of month
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dateStr = new Date(year, month, i).toISOString().split('T')[0];
+          const isToday = new Date().toISOString().split('T')[0] === dateStr;
+          const hasDue = dueDates.has(dateStr);
+
+          let classes = "w-8 h-8 flex items-center justify-center rounded-full text-sm font-semibold mx-auto transition-colors cursor-pointer ";
+
+          if (isToday) {
+            classes += "ring-2 ring-black text-black ";
+          } else {
+            classes += "text-slate-600 hover:bg-slate-100 ";
+          }
+
+          let dot = '';
+          if (hasDue) {
+            classes += "bg-amber-100 text-amber-700 hover:bg-amber-200 ";
+            dot = `<div class="absolute bottom-1 w-1 h-1 bg-amber-500 rounded-full"></div>`;
+          }
+
+          calGrid.innerHTML += `
+            <div class="relative flex justify-center">
+              <div class="${classes}">${i}</div>
+              ${dot}
+            </div>
+          `;
+        }
+      }
 
       // Enable Calendar Sync Button
       const btnSync = document.getElementById('btn-sync-calendar');
@@ -1061,46 +1193,63 @@ async function renderAssignment(id) {
     }
   };
 
-  // LanguageTool API Grammar Checking
+  // Initialize Quill Rich Text Editor
+  let quill = null;
+  if (window.Quill) {
+    quill = new window.Quill('#submit-editor', {
+      theme: 'snow',
+      placeholder: 'Write your answer here...',
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['link', 'clean']
+        ]
+      }
+    });
+  }
+
+  // LanguageTool API Grammar Checking (Now reading from Quill if active)
   const ta = document.getElementById('submit-text');
   const banner = document.getElementById('grammar-check-banner');
   const suggestion = document.getElementById('grammar-suggestion');
   let grammarTimeout;
 
-  document.getElementById('btn-dismiss-grammar').onclick = () => {
-    banner.classList.add('hidden');
-  };
+  if (banner && suggestion) {
+    document.getElementById('btn-dismiss-grammar').onclick = () => {
+      banner.classList.add('hidden');
+    };
 
-  ta.addEventListener('input', () => {
-    clearTimeout(grammarTimeout);
-    banner.classList.add('hidden');
-    const text = ta.value.trim();
-    if (text.length > 10) {
-      grammarTimeout = setTimeout(async () => {
-        try {
-          const body = new URLSearchParams({
-            text: text,
-            language: 'en-US'
-          });
-          const response = await fetch('https://api.languagetoolplus.com/v2/check', {
-            method: 'POST',
-            body: body
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.matches && data.matches.length > 0) {
-              const firstMatch = data.matches[0];
-              const repl = firstMatch.replacements.length > 0 ? ` (e.g. "${firstMatch.replacements[0].value}")` : '';
-              suggestion.innerHTML = `<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 mr-1">Playbook AI:</span> ${firstMatch.message}${repl}`;
-              banner.classList.remove('hidden');
+    const triggerGrammarCheck = (text) => {
+      clearTimeout(grammarTimeout);
+      banner.classList.add('hidden');
+      if (text.length > 10) {
+        grammarTimeout = setTimeout(async () => {
+          try {
+            const body = new URLSearchParams({ text: text, language: 'en-US' });
+            const response = await fetch('https://api.languagetoolplus.com/v2/check', { method: 'POST', body: body });
+            if (response.ok) {
+              const data = await response.json();
+              if (data.matches && data.matches.length > 0) {
+                const firstMatch = data.matches[0];
+                const repl = firstMatch.replacements.length > 0 ? ` (e.g. "${firstMatch.replacements[0].value}")` : '';
+                suggestion.innerHTML = `<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 mr-1">Playbook AI:</span> ${firstMatch.message}${repl}`;
+                banner.classList.remove('hidden');
+              }
             }
-          }
-        } catch (e) {
-          // Silent fail on network error for grammar
-        }
-      }, 1500); // 1.5s debounce
+          } catch (e) {}
+        }, 1500);
+      }
+    };
+
+    if (quill) {
+      quill.on('text-change', () => {
+        triggerGrammarCheck(quill.getText().trim());
+      });
+    } else {
+      ta.addEventListener('input', () => triggerGrammarCheck(ta.value.trim()));
     }
-  });
+  }
 
   document.getElementById('form-submit-work').onsubmit = async (e) => {
     e.preventDefault();
@@ -1131,12 +1280,16 @@ async function renderAssignment(id) {
         pdfPath = uploadData.path; // This is now a validated, correct path
       }
 
-      const textContent = type === 'text' ? document.getElementById('submit-text').value : null;
+      // Grab rich text HTML from Quill if available, else fallback to standard textarea
+      let finalContent = null;
+      if (type === 'text') {
+        finalContent = quill ? quill.root.innerHTML : document.getElementById('submit-text').value;
+      }
 
       // 2. ONLY THEN call the RPC (Ensure the exact name is 'api_submit_work')
       const { data, error } = await supabase.rpc('api_submit_work', {
         p_session_id: session.id, // Ensure this is a valid UUID and not null
-        p_text_content: textContent || null,
+        p_text_content: finalContent || null,
         p_pdf_path: pdfPath
       });
 

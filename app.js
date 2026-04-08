@@ -757,17 +757,36 @@ async function renderDashboard() {
         coursesData.forEach(c => courseLookup[c.id] = c.name);
     }
 
-    rawEnrollments.forEach(e => {
+    // Fetch and render classes with Unsplash imagery
+    for (const e of rawEnrollments) {
+      const courseName = courseLookup[e.course_id] || 'Unknown Course';
+      let imageUrl = 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=400&q=80'; // fallback image
+
+      if (window.ENV.UNSPLASH_ACCESS_KEY) {
+        try {
+          const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(courseName)}&client_id=${window.ENV.UNSPLASH_ACCESS_KEY}&per_page=1&orientation=landscape`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+              imageUrl = data.results[0].urls.small;
+            }
+          }
+        } catch (err) {
+          console.error("Unsplash fetch error:", err);
+        }
+      }
+
       classList.innerHTML += `
-        <a href="#course/${e.course_id}" class="min-w-[140px] max-w-[140px] p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 hover:shadow-md transition-all block cursor-pointer snap-start group">
-          <div class="w-10 h-10 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-            <i data-lucide="book-open" class="text-slate-900 w-4 h-4"></i>
+        <a href="#course/${e.course_id}" class="min-w-[160px] max-w-[160px] h-[200px] rounded-3xl overflow-hidden relative shadow-sm hover:shadow-xl transition-all block cursor-pointer snap-start group border border-slate-100">
+          <img src="${imageUrl}" alt="${courseName}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+          <div class="absolute bottom-0 left-0 w-full p-4">
+            <h3 class="font-bold text-white leading-tight drop-shadow-md line-clamp-2">${courseName}</h3>
+            <p class="text-xs text-white/80 mt-1 flex items-center gap-1"><i data-lucide="arrow-right-circle" class="w-3 h-3"></i> Enter Class</p>
           </div>
-          <h3 class="font-bold text-sm text-slate-900 truncate">${courseLookup[e.course_id] || 'Unknown Course'}</h3>
-          <p class="text-xs text-slate-400 mt-1">View Details</p>
         </a>
       `;
-    });
+    }
 
     // Fetch sessions
     // Decouple relational query here as well to prevent 400 errors

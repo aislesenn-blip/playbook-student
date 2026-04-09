@@ -16,9 +16,21 @@ async function init() {
   const { data: { session } } = await supabase.auth.getSession();
   currentUser = session?.user || null;
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    currentUser = session?.user || null;
-    render();
+  supabase.auth.onAuthStateChange((event, session) => {
+    const newUser = session?.user || null;
+    // On mobile, native file pickers can trigger a 'TOKEN_REFRESH' or 'SIGNED_IN' event upon returning to the browser.
+    // If we call render() blindly, it wipes the DOM state (like the selected PDF).
+    // ONLY re-render if the actual user ID has changed (i.e. logged in, or logged out).
+    if (
+      (!currentUser && newUser) ||
+      (currentUser && !newUser) ||
+      (currentUser && newUser && currentUser.id !== newUser.id)
+    ) {
+      currentUser = newUser;
+      render();
+    } else {
+      currentUser = newUser; // Keep token fresh without destroying the DOM
+    }
   });
 
   document.getElementById('btn-logout').addEventListener('click', async () => {
@@ -1414,12 +1426,19 @@ async function renderAssignment(id) {
   inputPdf.onchange = (e) => {
     selectedFile = e.target.files[0];
     if (selectedFile) {
-      document.getElementById('pdf-name').textContent = selectedFile.name;
-      // Change style to show success
+      // Change style to show success directly in innerHTML to avoid picking up replaced SVGs
       conPdf.classList.remove('border-slate-200', 'border-dashed');
       conPdf.classList.add('border-black', 'bg-slate-50', 'border-solid');
-      conPdf.querySelector('i').setAttribute('data-lucide', 'file-check-2');
-      conPdf.querySelector('.text-slate-500').textContent = 'File attached and ready to upload.';
+      conPdf.innerHTML = `
+        <input type="file" id="submit-pdf" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="file-check-2" class="text-green-600 w-8 h-8"></i>
+        </div>
+        <h3 id="pdf-name" class="text-lg font-bold text-slate-900 mb-1">${selectedFile.name}</h3>
+        <p class="text-slate-500 text-sm font-semibold">PDF selected. Click Submit Work below.</p>
+      `;
+      // Reattach the event listener since we overwrote the input
+      document.getElementById('submit-pdf').onchange = inputPdf.onchange;
       lucide.createIcons();
     }
   };
@@ -1509,11 +1528,12 @@ async function renderAssignment(id) {
         const filePath = `student_submissions/${session.id}/${currentUser.id}.pdf`;
 
         // 1. You MUST await the Storage PDF upload to complete FIRST
+        // RLS policies often block `upsert: true` (UPDATE) and only allow INSERT for students.
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('exams_bucket')
           .upload(filePath, selectedFile, {
             cacheControl: '3600',
-            upsert: true
+            upsert: false // Removed upsert to prevent RLS violation if UPDATE is blocked
           });
 
         if (uploadError) {

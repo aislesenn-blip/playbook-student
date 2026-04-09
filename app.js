@@ -834,20 +834,46 @@ async function renderDashboard() {
   const mapMobileNav = () => {
     const mobHome = document.getElementById('mob-tab-overview');
     const mobTasks = document.getElementById('mob-tab-tasks');
+    const mobClasses = document.getElementById('mob-tab-classes');
+    const mobProfile = document.getElementById('mob-tab-profile');
 
     if (mobHome) {
-      mobHome.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
+      mobHome.onclick = () => {
+        if (window.location.hash !== '') {
+            window.location.hash = ''; // Navigate back to dashboard if deep linked
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+    }
+
+    if (mobClasses) {
+      mobClasses.onclick = () => {
+        if (window.location.hash !== '') window.location.hash = '';
+        setTimeout(() => {
+          const classSection = document.getElementById('classes-list');
+          if (classSection) classSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      };
     }
 
     if (mobTasks) {
-      mobTasks.addEventListener('click', () => {
-        const tasksSection = document.getElementById('tasks-container');
-        if (tasksSection) {
-          tasksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
+      mobTasks.onclick = () => {
+        if (window.location.hash !== '') window.location.hash = '';
+        setTimeout(() => {
+          const tasksSection = document.getElementById('tasks-container');
+          if (tasksSection) tasksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      };
+    }
+
+    if (mobProfile) {
+        mobProfile.onclick = async () => {
+            const conf = confirm("Do you want to log out?");
+            if (conf) {
+                await supabase.auth.signOut();
+            }
+        };
     }
   };
   mapMobileNav();
@@ -974,13 +1000,53 @@ async function renderDashboard() {
             dot = `<div class="absolute bottom-1 w-1 h-1 bg-amber-500 rounded-full"></div>`;
           }
 
+          const idAttr = hasDue ? `id="cal-date-${dateStr}"` : '';
+
           calGrid.innerHTML += `
             <div class="relative flex justify-center">
-              <div class="${classes}">${i}</div>
+              <div ${idAttr} class="${classes}" data-date="${dateStr}">${i}</div>
               ${dot}
             </div>
           `;
         }
+
+        // Attach click listeners to filter assignments
+        setTimeout(() => {
+          dueDates.forEach(dateStr => {
+            const el = document.getElementById(`cal-date-${dateStr}`);
+            if (el) {
+              el.addEventListener('click', () => {
+                const pList = document.getElementById('pending-list');
+                const items = pList.querySelectorAll('a');
+                items.forEach(item => {
+                  if (item.dataset.duedate === dateStr) {
+                    item.style.display = 'flex';
+                    item.classList.add('ring-2', 'ring-amber-500');
+                    setTimeout(() => item.classList.remove('ring-2', 'ring-amber-500'), 1500);
+                  } else {
+                    item.style.display = 'none';
+                  }
+                });
+
+                // Add a reset button if not exists
+                if (!document.getElementById('btn-reset-cal')) {
+                   const resetBtn = document.createElement('button');
+                   resetBtn.id = 'btn-reset-cal';
+                   resetBtn.className = 'w-full py-2 mt-3 text-sm text-slate-500 font-bold hover:text-black transition-colors';
+                   resetBtn.innerHTML = 'Show All Assignments';
+                   resetBtn.onclick = () => {
+                     items.forEach(item => item.style.display = 'flex');
+                     resetBtn.remove();
+                   };
+                   pList.appendChild(resetBtn);
+                }
+
+                // Scroll to list
+                document.getElementById('tasks-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+              });
+            }
+          });
+        }, 100);
       }
 
       // Enable Calendar Sync Button
@@ -1020,8 +1086,9 @@ async function renderDashboard() {
       }
 
       pending.forEach(s => {
+        const dueDateStr = s.due_date ? new Date(s.due_date).toISOString().split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0];
         pList.innerHTML += `
-          <a href="#assignment/${s.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
+          <a href="#assignment/${s.id}" data-duedate="${dueDateStr}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
             <div>
               <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-1"></div>${courseLookup[s.course_id] || 'Unknown Course'}</p>
               <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${s.title}</h3>
@@ -1082,44 +1149,49 @@ async function renderDashboard() {
       });
 
       if (window.Chart && ctx) {
-        // Calculate average for the doughnut
-        const avgScore = dataPoints.length > 0 ? dataPoints.reduce((a, b) => a + b, 0) / dataPoints.length : 0;
-        const remainder = 100 - avgScore;
-
         new window.Chart(ctx, {
-          type: 'doughnut',
+          type: 'bar',
           data: {
-            labels: ['Average Score', 'Remaining'],
+            labels: labels,
             datasets: [{
-              data: [avgScore, remainder],
-              backgroundColor: ['#111827', '#f3f4f6'],
-              borderWidth: 0,
-              borderRadius: [20, 0],
-              cutout: '80%'
+              label: 'Score',
+              data: dataPoints,
+              backgroundColor: '#111827',
+              borderRadius: 8,
+              barPercentage: 0.6,
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 100,
+                grid: { display: false, drawBorder: false },
+                ticks: { font: { family: '-apple-system' }, color: '#9ca3af' }
+              },
+              x: {
+                grid: { display: false, drawBorder: false },
+                ticks: { display: false } // Hide long assignment names on X axis for clean look
+              }
+            },
             plugins: {
               legend: { display: false },
-              tooltip: { enabled: false }
+              tooltip: {
+                backgroundColor: '#ffffff',
+                titleColor: '#111827',
+                bodyColor: '#6b7280',
+                borderColor: '#e5e7eb',
+                borderWidth: 1,
+                padding: 10,
+                displayColors: false,
+                callbacks: {
+                  label: function(context) { return context.parsed.y + '%'; }
+                }
+              }
             }
-          },
-          plugins: [{
-            id: 'centerText',
-            beforeDraw: function(chart) {
-              const width = chart.width, height = chart.height, ctx = chart.ctx;
-              ctx.restore();
-              const fontSize = (height / 80).toFixed(2);
-              ctx.font = "bold " + fontSize + "em -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif";
-              ctx.textBaseline = "middle";
-              ctx.fillStyle = "#111827";
-              const text = Math.round(avgScore) + "%", textX = Math.round((width - ctx.measureText(text).width) / 2), textY = height / 2;
-              ctx.fillText(text, textX, textY);
-              ctx.save();
-            }
-          }]
+          }
         });
       }
     } else {

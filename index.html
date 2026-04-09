@@ -25,15 +25,15 @@
 <body class="bg-slate-50 min-h-screen text-slate-900 pb-20">
 
   <!-- Navigation Bar -->
-  <header id="main-header" class="bg-white/80 backdrop-blur-xl sticky top-0 z-10 border-b border-slate-200/50 px-4 md:px-6 py-4 flex justify-between items-center hidden">
-    <div class="flex items-center cursor-pointer" onclick="window.location.hash=''">
-      <img src="images/playbook-logo.png" alt="Playbook" class="h-8 w-auto mix-blend-multiply" style="object-fit: contain;">
+  <header id="main-header" class="bg-white/90 backdrop-blur-2xl sticky top-0 z-10 border-b border-slate-200/50 px-4 md:px-8 py-4 flex justify-between items-center hidden shadow-sm transition-all">
+    <div class="flex items-center cursor-pointer hover:opacity-80 transition-opacity" onclick="window.location.hash=''">
+      <img src="images/playbook-logo.png" alt="Playbook" class="h-8 md:h-10 w-auto mix-blend-multiply" style="object-fit: contain;">
     </div>
-    <div class="flex items-center gap-4">
-      <div id="header-avatar-container" class="w-8 h-8 bg-slate-200 rounded-full border border-slate-300 overflow-hidden flex items-center justify-center">
-        <i data-lucide="user" class="w-4 h-4 text-slate-500"></i>
+    <div class="flex items-center gap-5">
+      <div id="header-avatar-container" class="w-10 h-10 bg-slate-100 rounded-full border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm cursor-pointer hover:shadow-md transition-shadow">
+        <i data-lucide="user" class="w-5 h-5 text-slate-500"></i>
       </div>
-      <button id="btn-logout" class="p-2 text-slate-500 hover:text-black transition-colors rounded-full hover:bg-slate-100">
+      <button id="btn-logout" class="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors rounded-full">
         <i data-lucide="log-out" class="w-5 h-5"></i>
       </button>
     </div>

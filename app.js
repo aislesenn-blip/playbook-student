@@ -1234,13 +1234,14 @@ async function renderDashboard() {
 
       pending.forEach(s => {
         const dueDateStr = s.due_date ? new Date(s.due_date).toISOString().split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        const safeTitle = s.title || s.name || 'Untitled Assignment';
         pList.innerHTML += `
           <a href="#assignment/${s.id}" data-duedate="${dueDateStr}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
             <div class="flex flex-col">
               <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5 tracking-wider flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>${courseLookup[s.course_id] || 'Unknown Course'}
               </p>
-              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${s.title}</h3>
+              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${safeTitle}</h3>
             </div>
             <div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
               <i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
@@ -1284,7 +1285,8 @@ async function renderDashboard() {
           pct = Math.round((g.sub.total_score / g.sub.max_score) * 100);
         }
 
-        labels.push(g.session.title || 'Assignment');
+        const safeTitle = g.session.title || g.session.name || 'Untitled Assignment';
+        labels.push(safeTitle);
         dataPoints.push(pct);
 
         let badgeColor = 'bg-slate-100 text-slate-700';
@@ -1300,7 +1302,7 @@ async function renderDashboard() {
               <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5 tracking-wider flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full ${iconColor} inline-block bg-current"></span>${courseLookup[g.session.course_id] || 'Unknown Course'}
               </p>
-              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors line-clamp-1">${g.session.title}</h3>
+              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors line-clamp-1">${safeTitle}</h3>
             </div>
             <div class="flex items-center gap-3 shrink-0">
               <div class="px-3 py-1 rounded-full ${badgeColor} font-black text-[13px] tracking-wide">

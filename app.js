@@ -1411,6 +1411,12 @@ async function renderAssignment(id) {
     selectedFile = e.target.files[0];
     if (selectedFile) {
       document.getElementById('pdf-name').textContent = selectedFile.name;
+      // Change style to show success
+      conPdf.classList.remove('border-slate-200', 'border-dashed');
+      conPdf.classList.add('border-black', 'bg-slate-50', 'border-solid');
+      conPdf.querySelector('i').setAttribute('data-lucide', 'file-check-2');
+      conPdf.querySelector('.text-slate-500').textContent = 'File attached and ready to upload.';
+      lucide.createIcons();
     }
   };
 
@@ -1479,23 +1485,39 @@ async function renderAssignment(id) {
     btn.disabled = true;
     err.classList.add('hidden');
 
+    // Provide user feedback that process is happening
+    const originalBtnText = btn.textContent;
+    btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2 inline-block"></i> Uploading...';
+    lucide.createIcons();
+
     let pdfPath = null;
 
     try {
-      if (type === 'pdf' && selectedFile) {
+      if (type === 'pdf') {
+        if (!selectedFile) {
+          throw new Error("Please select a PDF file before submitting.");
+        }
+
+        // Show specific UI for PDF upload progression
+        document.getElementById('pdf-name').textContent = 'Uploading... please wait.';
+
         const ext = selectedFile.name.split('.').pop();
         const filePath = `student_submissions/${session.id}/${currentUser.id}.pdf`;
 
         // 1. You MUST await the Storage PDF upload to complete FIRST
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('exams_bucket')
-          .upload(filePath, selectedFile);
+          .upload(filePath, selectedFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
 
         if (uploadError) {
           console.error("File upload failed:", uploadError);
-          err.textContent = uploadError.message;
+          err.textContent = "Upload failed: " + uploadError.message;
           err.classList.remove('hidden');
           btn.disabled = false;
+          btn.textContent = originalBtnText; // Reset button text
           return; // Halt execution immediately to prevent sending null paths to the database
         }
         pdfPath = uploadData.path; // This is now a validated, correct path
@@ -1537,9 +1559,15 @@ async function renderAssignment(id) {
       }
 
     } catch (error) {
-      err.textContent = error.message;
+      console.error("Caught error during submission:", error);
+      err.textContent = error.message || "An unexpected error occurred.";
       err.classList.remove('hidden');
       btn.disabled = false;
+      btn.textContent = originalBtnText; // Reset button text
+
+      if (type === 'pdf' && selectedFile) {
+         document.getElementById('pdf-name').textContent = selectedFile.name; // reset UI
+      }
     }
   };
 

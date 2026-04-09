@@ -357,54 +357,181 @@ async function renderGradeReview(subId) {
   }
 
   // Handle Exam-Level Appeal
-  const examAppealBtn = document.getElementById('btn-open-exam-appeal');
   const examAppealContainer = document.getElementById('exam-appeal-container');
 
-  if (examAppealBtn && examAppealContainer) {
-    examAppealBtn.onclick = () => {
-      examAppealContainer.innerHTML = `
-        <div class="max-w-xl mx-auto flex flex-col gap-3 fade-in bg-slate-50 p-4 rounded-2xl border border-slate-200">
-          <p class="text-sm font-bold text-slate-900 mb-1">Dispute Exam Grade</p>
-          <textarea id="exam-appeal-reason" placeholder="Please explain why you are disputing the overall score..." class="w-full h-24 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:border-black text-sm resize-none"></textarea>
-          <div class="flex gap-2 justify-end">
-            <button id="btn-cancel-exam-appeal" class="px-5 py-2 text-slate-500 hover:text-black hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors">Cancel</button>
-            <button id="btn-submit-exam-appeal" class="px-6 py-2 bg-black hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md transition-colors">Submit Appeal</button>
-          </div>
-        </div>
-      `;
+  if (examAppealContainer) {
+    // 4-State Appeal Blueprint Implementation
+    const { data: existingAppeals, error: appealError } = await supabase
+      .from('appeals')
+      .select('*')
+      .eq('submission_id', subId)
+      .eq('question_id', 'entire_exam')
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-      document.getElementById('btn-cancel-exam-appeal').onclick = () => {
-        // Just re-render the view to restore the button
-        renderGradeReview(subId);
-      };
+    const activeAppeal = existingAppeals && existingAppeals.length > 0 ? existingAppeals[0] : null;
 
-      document.getElementById('btn-submit-exam-appeal').onclick = async () => {
-        const reason = document.getElementById('exam-appeal-reason').value;
-        if (!reason) return;
+    const renderAppealState = (appeal) => {
+      if (!appeal) {
+        // STATE 1: Initial Dispute (Not created yet)
+        examAppealContainer.innerHTML = `
+          <button id="btn-open-exam-appeal" class="w-full md:w-auto mx-auto flex items-center justify-center gap-2 px-6 py-3 bg-white border-2 border-slate-200 text-slate-500 hover:text-black hover:border-black rounded-2xl font-bold text-sm transition-all shadow-sm">
+            <i data-lucide="flag" class="w-4 h-4"></i> Dispute Entire Exam
+          </button>
+        `;
 
-        // Use 'entire_exam' as the question_id for exam-level appeals
-        const { error } = await supabase.from('appeals').insert({
-          submission_id: subId,
-          student_id: currentStudentId,
-          question_id: 'entire_exam',
-          reason: reason
-        });
-
-        if (!error) {
+        document.getElementById('btn-open-exam-appeal').onclick = () => {
           examAppealContainer.innerHTML = `
-            <div class="max-w-xl mx-auto flex items-center justify-center gap-2 px-6 py-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl font-bold text-sm shadow-sm fade-in">
-              <i data-lucide="check-circle" class="w-5 h-5"></i> Exam Appeal Submitted to Professor
+            <div class="max-w-xl mx-auto flex flex-col gap-3 fade-in bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p class="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-amber-500"></i> Open Dispute</p>
+              <textarea id="exam-appeal-reason" placeholder="Please explain why you are disputing the overall score..." class="w-full h-24 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:border-black text-sm resize-none"></textarea>
+              <div class="flex gap-2 justify-end mt-1">
+                <button id="btn-cancel-exam-appeal" class="px-5 py-2 text-slate-500 hover:text-black hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors">Cancel</button>
+                <button id="btn-submit-exam-appeal" class="px-6 py-2 bg-black hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md transition-colors flex items-center gap-2"><i data-lucide="send" class="w-4 h-4"></i> Send Appeal</button>
+              </div>
             </div>
           `;
           lucide.createIcons();
-        } else {
-          alert('Failed to submit appeal');
-        }
-      };
-    };
-  }
 
-  lucide.createIcons();
+          document.getElementById('btn-cancel-exam-appeal').onclick = () => renderAppealState(null);
+
+          document.getElementById('btn-submit-exam-appeal').onclick = async () => {
+            const reason = document.getElementById('exam-appeal-reason').value.trim();
+            if (!reason) return;
+
+            const btn = document.getElementById('btn-submit-exam-appeal');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            const newAppeal = {
+              submission_id: subId,
+              student_id: currentStudentId,
+              question_id: 'entire_exam',
+              reason: reason,
+              status: 'pending_ai' // CRITICAL: Triggers the AI Edge Function
+            };
+
+            const { data, error } = await supabase.from('appeals').insert([newAppeal]).select().single();
+
+            if (!error && data) {
+              renderAppealState(data);
+            } else {
+              alert('Failed to submit appeal. Please try again.');
+              btn.disabled = false;
+              btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Send Appeal';
+              lucide.createIcons();
+            }
+          };
+        };
+
+      } else if (appeal.status === 'pending_ai') {
+        // STATE 1.5: Pending AI Review
+        examAppealContainer.innerHTML = `
+          <div class="max-w-xl mx-auto flex items-center justify-center gap-3 px-6 py-5 bg-blue-50 text-blue-800 border border-blue-200 rounded-2xl shadow-sm fade-in">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin text-blue-500 shrink-0"></i>
+            <p class="text-sm font-semibold leading-snug">The Playbook AI is currently conducting a deep-dive review of your appeal. Check back shortly.</p>
+          </div>
+        `;
+
+      } else if (appeal.status === 'ai_resolved') {
+        // STATE 2: AI Resolution (The Cross-Roads)
+        examAppealContainer.innerHTML = `
+          <div class="max-w-xl mx-auto flex flex-col gap-4 fade-in bg-white p-5 rounded-2xl border border-purple-200 shadow-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="sparkles" class="w-5 h-5 text-purple-500"></i>
+              <p class="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 uppercase tracking-wider">Appeal Update</p>
+            </div>
+            <p class="text-sm text-slate-700 leading-relaxed font-medium bg-slate-50 p-4 rounded-xl border border-slate-100">${appeal.ai_response || 'The AI has reviewed your appeal and made a decision.'}</p>
+
+            <div class="flex flex-col sm:flex-row gap-3 mt-2" id="ai-resolution-buttons">
+              <button id="btn-accept-ai" class="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"><i data-lucide="check" class="w-4 h-4"></i> Accept AI Decision</button>
+              <button id="btn-escalate-ai" class="flex-1 px-4 py-2.5 bg-white border border-slate-300 hover:border-black text-slate-700 hover:text-black rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"><i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i> Escalate to Professor</button>
+            </div>
+            <div id="escalation-form-container" class="hidden flex-col gap-3 mt-3 pt-4 border-t border-slate-100">
+              <p class="text-sm font-bold text-slate-900">Reason for Escalation</p>
+              <textarea id="escalation-reason" placeholder="Please explain why you disagree with the AI's logic..." class="w-full h-24 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:border-black text-sm resize-none"></textarea>
+              <div class="flex gap-2 justify-end">
+                <button id="btn-cancel-escalation" class="px-5 py-2 text-slate-500 hover:text-black hover:bg-slate-200 rounded-xl text-sm font-bold transition-colors">Cancel</button>
+                <button id="btn-submit-escalation" class="px-6 py-2 bg-black hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md transition-colors flex items-center gap-2"><i data-lucide="arrow-up-right" class="w-4 h-4"></i> Escalate</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('btn-accept-ai').onclick = () => {
+          // Closes UI, no DB change needed as ai_resolved is a terminal state if un-escalated
+          examAppealContainer.innerHTML = '';
+        };
+
+        document.getElementById('btn-escalate-ai').onclick = () => {
+          document.getElementById('ai-resolution-buttons').classList.add('hidden');
+          document.getElementById('escalation-form-container').classList.remove('hidden');
+          document.getElementById('escalation-form-container').classList.add('flex');
+        };
+
+        document.getElementById('btn-cancel-escalation').onclick = () => {
+          document.getElementById('escalation-form-container').classList.add('hidden');
+          document.getElementById('escalation-form-container').classList.remove('flex');
+          document.getElementById('ai-resolution-buttons').classList.remove('hidden');
+        };
+
+        document.getElementById('btn-submit-escalation').onclick = async () => {
+          const escReason = document.getElementById('escalation-reason').value.trim();
+          if (!escReason) return;
+
+          const btn = document.getElementById('btn-submit-escalation');
+          btn.disabled = true;
+          btn.textContent = 'Escalating...';
+
+          // STATE 3 Logic: Update appeal to escalated_to_teacher
+          const { data, error } = await supabase.from('appeals').update({
+              status: 'escalated_to_teacher', // CRITICAL: Sends it to Mother App Inbox
+              escalation_reason: escReason
+          }).eq('id', appeal.id).select().single();
+
+          if (!error && data) {
+            renderAppealState(data);
+          } else {
+            alert('Failed to escalate. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="arrow-up-right" class="w-4 h-4"></i> Escalate';
+            lucide.createIcons();
+          }
+        };
+
+      } else if (appeal.status === 'escalated_to_teacher') {
+        // STATE 3: The Escalation
+        examAppealContainer.innerHTML = `
+          <div class="max-w-xl mx-auto flex items-center justify-center gap-3 px-6 py-5 bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl shadow-sm fade-in">
+            <i data-lucide="clock" class="w-5 h-5 text-amber-500 shrink-0"></i>
+            <p class="text-sm font-semibold leading-snug">Your appeal has been escalated. Your professor will review the AI's decision and your response.</p>
+          </div>
+        `;
+
+      } else if (appeal.status === 'teacher_resolved' || appeal.status === 'rejected') {
+        // STATE 4: The Final Verdict
+        const isApproved = appeal.status === 'teacher_resolved';
+        const colorClass = isApproved ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200';
+        const iconClass = isApproved ? 'check-circle text-emerald-500' : 'x-circle text-slate-500';
+        const titleColor = isApproved ? 'text-emerald-700' : 'text-slate-700';
+
+        examAppealContainer.innerHTML = `
+          <div class="max-w-xl mx-auto flex flex-col gap-3 fade-in p-5 rounded-2xl border ${colorClass} shadow-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <i data-lucide="${iconClass}" class="w-5 h-5"></i>
+              <p class="text-sm font-bold uppercase tracking-wider ${titleColor}">Professor's Decision</p>
+            </div>
+            <p class="text-sm text-slate-800 leading-relaxed font-medium bg-white/60 p-4 rounded-xl border border-white/40">${appeal.teacher_response || 'The professor has made a final ruling on this dispute.'}</p>
+          </div>
+        `;
+      }
+      lucide.createIcons();
+    };
+
+    renderAppealState(activeAppeal);
+  } else {
+    lucide.createIcons();
+  }
 }
 
 function renderLogin() {
@@ -648,25 +775,25 @@ async function renderCourse(courseId) {
       pendingSessionsForCourse.push(s);
       pendingSection.classList.remove('hidden');
 
-      let detailsHtml = '<p class="text-sm text-slate-500 mt-1">Not started</p>';
+      let detailsHtml = '<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-bold">Not started</span>';
       if (s.session_type === 'digital') {
           const dueDate = s.due_date ? new Date(s.due_date).toLocaleDateString() : 'No due date';
           detailsHtml = `
-            <div class="flex items-center gap-3 mt-2 text-sm text-slate-500">
-              <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i> Due: ${dueDate}</span>
-              <span class="inline-flex items-center gap-1"><i data-lucide="laptop" class="w-4 h-4"></i> Digital Upload</span>
-            </div>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-600 font-bold"><i data-lucide="calendar" class="w-3 h-3"></i> ${dueDate}</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 font-bold"><i data-lucide="laptop" class="w-3 h-3"></i> Digital</span>
           `;
       }
 
       pendingList.innerHTML += `
-        <a href="#assignment/${s.id}" class="card hover:border-slate-300 transition-colors block">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="font-bold text-slate-900">${sessionTitle}</h3>
+        <a href="#assignment/${s.id}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${sessionTitle}</h3>
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider">
               ${detailsHtml}
             </div>
-            <i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>
+          </div>
+          <div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors ml-4">
+            <i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
           </div>
         </a>
       `;
@@ -678,22 +805,26 @@ async function renderCourse(courseId) {
       let linkHtml = `href="#grade/${sub.id}"`;
 
       if (s.publish_status === 'published') {
-        statusHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Graded</span>`;
+        statusHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold"><i data-lucide="check-circle" class="w-3 h-3"></i> Graded</span>`;
       } else {
-        statusHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Submitted</span>`;
+        statusHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-50 text-slate-600 font-bold"><i data-lucide="clock" class="w-3 h-3"></i> Submitted</span>`;
         // Don't link to grade view if not published yet
         linkHtml = `href="#" class="cursor-default opacity-75"`;
       }
 
+      const iconChevron = s.publish_status === 'published' ?
+        `<div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors ml-4"><i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i></div>`
+        : '';
+
       gradedList.innerHTML += `
-        <a ${linkHtml} class="card hover:border-slate-300 transition-colors block">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="font-bold text-slate-900">${sessionTitle}</h3>
-              <div class="mt-2">${statusHtml}</div>
+        <a ${linkHtml} class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${sessionTitle}</h3>
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider">
+              ${statusHtml}
             </div>
-            ${s.publish_status === 'published' ? `<i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>` : ''}
           </div>
+          ${iconChevron}
         </a>
       `;
     }
@@ -1088,12 +1219,16 @@ async function renderDashboard() {
       pending.forEach(s => {
         const dueDateStr = s.due_date ? new Date(s.due_date).toISOString().split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0];
         pList.innerHTML += `
-          <a href="#assignment/${s.id}" data-duedate="${dueDateStr}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
-            <div>
-              <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-1"></div>${courseLookup[s.course_id] || 'Unknown Course'}</p>
-              <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${s.title}</h3>
+          <a href="#assignment/${s.id}" data-duedate="${dueDateStr}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5 tracking-wider flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>${courseLookup[s.course_id] || 'Unknown Course'}
+              </p>
+              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${s.title}</h3>
             </div>
-            <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
+            <div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
+              <i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
+            </div>
           </a>
         `;
       });
@@ -1136,14 +1271,27 @@ async function renderDashboard() {
         labels.push(g.session.title || 'Assignment');
         dataPoints.push(pct);
 
+        let badgeColor = 'bg-slate-100 text-slate-700';
+        let iconColor = 'text-slate-500';
+        if (pct >= 90) { badgeColor = 'bg-emerald-100 text-emerald-800'; iconColor = 'text-emerald-500'; }
+        else if (pct >= 75) { badgeColor = 'bg-blue-100 text-blue-800'; iconColor = 'text-blue-500'; }
+        else if (pct >= 60) { badgeColor = 'bg-amber-100 text-amber-800'; iconColor = 'text-amber-500'; }
+        else if (pct > 0) { badgeColor = 'bg-rose-100 text-rose-800'; iconColor = 'text-rose-500'; }
+
         gList.innerHTML += `
-          <a href="#grade/${g.sub.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
-            <div>
-              <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider">${courseLookup[g.session.course_id] || 'Unknown Course'}</p>
-              <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${g.session.title}</h3>
-              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${pct}%</span></p>
+          <a href="#grade/${g.sub.id}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+            <div class="flex flex-col pr-4">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5 tracking-wider flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full ${iconColor} inline-block bg-current"></span>${courseLookup[g.session.course_id] || 'Unknown Course'}
+              </p>
+              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors line-clamp-1">${g.session.title}</h3>
             </div>
-            <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
+            <div class="flex items-center gap-3 shrink-0">
+              <div class="px-3 py-1 rounded-full ${badgeColor} font-black text-[13px] tracking-wide">
+                ${pct}%
+              </div>
+              <i data-lucide="chevron-right" class="text-slate-300 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
+            </div>
           </a>
         `;
       });

@@ -610,19 +610,23 @@ function renderRegister() {
     }
 
     if (authData.user) {
-      const { error: dbError } = await supabase.from('students').insert({
+      const { data: newStudent, error: dbError } = await supabase.from('students').insert({
         auth_id: authData.user.id,
         email,
         full_name: fullName,
         registration_number: regNumber
-      });
+      }).select('id, full_name, registration_number').single();
+
       if (dbError) {
         err.textContent = dbError.message;
         err.classList.remove('hidden');
         btn.disabled = false;
-      } else {
-        // Automatically set currentStudentId to bypass the fallback check
-        currentStudentId = authData.user.id; // It will be fetched properly on next render
+      } else if (newStudent) {
+        // Set correctly to the database serial ID, not the auth UUID
+        currentStudentId = newStudent.id;
+        window.studentName = newStudent.full_name;
+        window.registrationNumber = newStudent.registration_number;
+        // Auth listener triggers render() on sign in
       }
     }
   });

@@ -508,7 +508,8 @@ async function renderCourse(courseId) {
 
   // Fetch course name
   const { data: courseData } = await supabase.from('courses').select('name').eq('id', courseId).single();
-  document.getElementById('course-title').textContent = courseData?.name || 'Unknown Course';
+  const courseName = courseData?.name || 'Unknown Course';
+  document.getElementById('course-title').textContent = courseName;
 
   // Fetch course materials
   const { data: materials, error: materialsError } = await supabase.from('course_materials').select('*').eq('course_id', courseId);
@@ -777,10 +778,10 @@ async function renderDashboard() {
     const motEl = document.getElementById('daily-motivation');
     if (!motEl) return;
     try {
-      const res = await fetch('https://api.adviceslip.com/advice');
+      const res = await fetch('https://dummyjson.com/quotes/random');
       const data = await res.json();
-      if (data && data.slip) {
-        motEl.textContent = `"${data.slip.advice}"`;
+      if (data && data.quote) {
+        motEl.textContent = `"${data.quote}" - ${data.author || 'Unknown'}`;
       }
     } catch(e) {
       motEl.textContent = `"Keep pushing forward!"`;

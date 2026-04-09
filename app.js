@@ -775,25 +775,25 @@ async function renderCourse(courseId) {
       pendingSessionsForCourse.push(s);
       pendingSection.classList.remove('hidden');
 
-      let detailsHtml = '<p class="text-sm text-slate-500 mt-1">Not started</p>';
+      let detailsHtml = '<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-bold">Not started</span>';
       if (s.session_type === 'digital') {
           const dueDate = s.due_date ? new Date(s.due_date).toLocaleDateString() : 'No due date';
           detailsHtml = `
-            <div class="flex items-center gap-3 mt-2 text-sm text-slate-500">
-              <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i> Due: ${dueDate}</span>
-              <span class="inline-flex items-center gap-1"><i data-lucide="laptop" class="w-4 h-4"></i> Digital Upload</span>
-            </div>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-600 font-bold"><i data-lucide="calendar" class="w-3 h-3"></i> ${dueDate}</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 font-bold"><i data-lucide="laptop" class="w-3 h-3"></i> Digital</span>
           `;
       }
 
       pendingList.innerHTML += `
-        <a href="#assignment/${s.id}" class="card hover:border-slate-300 transition-colors block">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="font-bold text-slate-900">${sessionTitle}</h3>
+        <a href="#assignment/${s.id}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${sessionTitle}</h3>
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider">
               ${detailsHtml}
             </div>
-            <i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>
+          </div>
+          <div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors ml-4">
+            <i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
           </div>
         </a>
       `;
@@ -805,22 +805,26 @@ async function renderCourse(courseId) {
       let linkHtml = `href="#grade/${sub.id}"`;
 
       if (s.publish_status === 'published') {
-        statusHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Graded</span>`;
+        statusHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold"><i data-lucide="check-circle" class="w-3 h-3"></i> Graded</span>`;
       } else {
-        statusHtml = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Submitted</span>`;
+        statusHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-50 text-slate-600 font-bold"><i data-lucide="clock" class="w-3 h-3"></i> Submitted</span>`;
         // Don't link to grade view if not published yet
         linkHtml = `href="#" class="cursor-default opacity-75"`;
       }
 
+      const iconChevron = s.publish_status === 'published' ?
+        `<div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors ml-4"><i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i></div>`
+        : '';
+
       gradedList.innerHTML += `
-        <a ${linkHtml} class="card hover:border-slate-300 transition-colors block">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="font-bold text-slate-900">${sessionTitle}</h3>
-              <div class="mt-2">${statusHtml}</div>
+        <a ${linkHtml} class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${sessionTitle}</h3>
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider">
+              ${statusHtml}
             </div>
-            ${s.publish_status === 'published' ? `<i data-lucide="chevron-right" class="text-slate-400 w-5 h-5"></i>` : ''}
           </div>
+          ${iconChevron}
         </a>
       `;
     }
@@ -1215,12 +1219,16 @@ async function renderDashboard() {
       pending.forEach(s => {
         const dueDateStr = s.due_date ? new Date(s.due_date).toISOString().split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0];
         pList.innerHTML += `
-          <a href="#assignment/${s.id}" data-duedate="${dueDateStr}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
-            <div>
-              <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-1"></div>${courseLookup[s.course_id] || 'Unknown Course'}</p>
-              <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${s.title}</h3>
+          <a href="#assignment/${s.id}" data-duedate="${dueDateStr}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5 tracking-wider flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>${courseLookup[s.course_id] || 'Unknown Course'}
+              </p>
+              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors">${s.title}</h3>
             </div>
-            <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
+            <div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
+              <i data-lucide="chevron-right" class="text-slate-400 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
+            </div>
           </a>
         `;
       });
@@ -1263,14 +1271,27 @@ async function renderDashboard() {
         labels.push(g.session.title || 'Assignment');
         dataPoints.push(pct);
 
+        let badgeColor = 'bg-slate-100 text-slate-700';
+        let iconColor = 'text-slate-500';
+        if (pct >= 90) { badgeColor = 'bg-emerald-100 text-emerald-800'; iconColor = 'text-emerald-500'; }
+        else if (pct >= 75) { badgeColor = 'bg-blue-100 text-blue-800'; iconColor = 'text-blue-500'; }
+        else if (pct >= 60) { badgeColor = 'bg-amber-100 text-amber-800'; iconColor = 'text-amber-500'; }
+        else if (pct > 0) { badgeColor = 'bg-rose-100 text-rose-800'; iconColor = 'text-rose-500'; }
+
         gList.innerHTML += `
-          <a href="#grade/${g.sub.id}" class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 transition-colors group mb-3 shadow-sm">
-            <div>
-              <p class="text-xs font-bold text-slate-500 uppercase mb-1 tracking-wider">${courseLookup[g.session.course_id] || 'Unknown Course'}</p>
-              <h3 class="font-bold text-slate-900 text-lg group-hover:text-slate-600 transition-colors">${g.session.title}</h3>
-              <p class="text-slate-500 text-sm mt-1">Score: <span class="font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded-md ml-1">${pct}%</span></p>
+          <a href="#grade/${g.sub.id}" class="flex items-center justify-between py-3 px-4 bg-white border border-slate-100 rounded-[16px] hover:border-slate-300 hover:shadow-md transition-all group shadow-sm">
+            <div class="flex flex-col pr-4">
+              <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5 tracking-wider flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full ${iconColor} inline-block bg-current"></span>${courseLookup[g.session.course_id] || 'Unknown Course'}
+              </p>
+              <h3 class="font-bold text-slate-900 text-[15px] leading-tight group-hover:text-slate-700 transition-colors line-clamp-1">${g.session.title}</h3>
             </div>
-            <i data-lucide="chevron-right" class="text-slate-300 w-5 h-5 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-1"></i>
+            <div class="flex items-center gap-3 shrink-0">
+              <div class="px-3 py-1 rounded-full ${badgeColor} font-black text-[13px] tracking-wide">
+                ${pct}%
+              </div>
+              <i data-lucide="chevron-right" class="text-slate-300 w-4 h-4 group-hover:text-slate-900 transition-colors transform group-hover:translate-x-0.5"></i>
+            </div>
           </a>
         `;
       });
